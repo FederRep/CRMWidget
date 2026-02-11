@@ -30,9 +30,15 @@ function createIncomingMessage(conversationId, channel, text) {
   store.messages.push(msg)
 
   eventBus.emit(EVENTS.MESSAGE_INCOMING, msg)
+  return msg
+}
+
+function getMessagesByConversationId(conversationId) {
+  return store.messages.filter(m => m.conversationId == conversationId)
 }
 
 module.exports = {
   createOutgoingMessage,
-  createIncomingMessage
+  createIncomingMessage,
+  getMessagesByConversationId
 }
