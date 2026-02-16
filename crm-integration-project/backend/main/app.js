@@ -19,11 +19,6 @@ console.log('1. dotenv loaded, TOKEN =', process.env.TELEGRAM_TOKEN);
 // Общий eventBus
 const eventBus = new EventEmitter();
 
-const store = {
-  conversations: [],
-  messages: []
-};
-
 // Telegram Worker (webhook)
 const app = express();
 app.use(express.json());
