@@ -1,0 +1,11 @@
+[dotenv@17.3.1] injecting env (7) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+info: Application started {"timestamp":"2026-02-16T09:31:13.471Z"}
+info: Checking connection to amoCRM... {"timestamp":"2026-02-16T09:31:13.473Z"}
+info: Making request {"data":null,"endpoint":"/api/v4/account","method":"GET","timestamp":"2026-02-16T09:31:13.473Z"}
+info: Registering message.incoming listener {"timestamp":"2026-02-16T09:31:13.484Z"}
+info: Registering message.outgoing listener {"timestamp":"2026-02-16T09:31:13.484Z"}
+info: App listening on port 3000 {"timestamp":"2026-02-16T09:31:13.486Z"}
+warn: Token expired, refreshing... {"timestamp":"2026-02-16T09:31:14.056Z"}
+error: No user found for subdomain {"subdomain":"https://podshivalovvfyodor.amocrm.ru","timestamp":"2026-02-16T09:31:14.057Z"}
+error: Failed to connect to amoCRM {"error":"No user found for subdomain","timestamp":"2026-02-16T09:31:14.058Z"}
+error: amoCRM connection FAILED {"timestamp":"2026-02-16T09:31:14.058Z"}

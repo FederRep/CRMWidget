@@ -1,0 +1,36 @@
+{"level":"error","message":"No user found for subdomain","subdomain":"https://podshivalovvfyodor.amocrm.ru","timestamp":"2026-02-16T09:31:14.057Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T09:31:14.058Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T09:31:14.058Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"https://podshivalovvfyodor.amocrm.ru","timestamp":"2026-02-16T09:44:43.716Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T09:44:43.716Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T09:44:43.716Z"}
+{"endpoint":"/api/v4/account","error":"Invalid URL","level":"error","message":"Request error","method":"GET","timestamp":"2026-02-16T09:46:58.010Z"}
+{"error":"Invalid URL","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T09:46:58.010Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T09:46:58.010Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-16T10:10:18.414Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T10:10:18.414Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T10:10:18.414Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-16T10:10:40.556Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T10:10:40.556Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T10:10:40.556Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-16T11:47:41.226Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T11:47:41.226Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T11:47:41.226Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-16T11:49:45.340Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T11:49:45.340Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T11:49:45.341Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-16T11:58:54.589Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T11:58:54.589Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T11:58:54.589Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-16T12:29:52.640Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T12:29:52.640Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T12:29:52.640Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-16T12:35:20.877Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T12:35:20.877Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T12:35:20.877Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-16T12:46:06.925Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T12:46:06.925Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T12:46:06.925Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-16T12:57:58.311Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-16T12:57:58.311Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T12:57:58.311Z"}

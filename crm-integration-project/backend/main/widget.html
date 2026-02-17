@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Telegram Integration Widget</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 10px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 100%;
+      padding: 10px;
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    h3 {
+      margin-top: 0;
+      color: #333;
+    }
+    .status {
+      padding: 5px;
+      border-radius: 3px;
+      margin-top: 10px;
+    }
+    .connected {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .disconnected {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h3>Telegram Integration</h3>
+  <div id="status" class="status disconnected">Disconnected</div>
+  <button id="connectBtn">Connect to Telegram</button>
+  <div id="info"></div>
+</div>
+
+<script>
+  // Получаем параметры из amoCRM
+  const urlParams = new URLSearchParams(window.location.search);
+  const leadId = urlParams.get('ENTITY_ID');
+  const entityType = urlParams.get('ENTITY_TYPE');
+
+  const statusDiv = document.getElementById('status');
+  const connectBtn = document.getElementById('connectBtn');
+  const infoDiv = document.getElementById('info');
+
+  async function checkConnection() {
+    try {
+      const response = await fetch('https://nehemiah-unamusable-nikki.ngrok-free.dev/check-connection', { // ✅ Обновлён URL
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId, entityType })
+      });
+
+      const data = await response.json();
+
+      if (data.connected) {
+        statusDiv.textContent = 'Connected to Telegram';
+        statusDiv.className = 'status connected';
+        infoDiv.innerHTML = `<p>Chat ID: ${data.telegramChatId}</p>`;
+      } else {
+        statusDiv.textContent = 'Not connected';
+        statusDiv.className = 'status disconnected';
+      }
+    } catch (error) {
+      console.error('Check connection error:', error);
+    }
+  }
+
+  connectBtn.addEventListener('click', () => {
+    const width = 500;
+    const height = 600;
+    const left = (screen.width / 2) - (width / 2);
+    const top = (screen.height / 2) - (height / 2);
+
+    const url = `https://nehemiah-unamusable-nikki.ngrok-free.dev/connect-telegram?leadId=${leadId || ''}&entityType=${entityType || ''}`; // ✅ Обновлён URL
+    window.open(url, 'Connect Telegram', `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+  });
+
+  checkConnection();
+  setInterval(checkConnection, 10000);
+</script>
+
+</body>
+</html>

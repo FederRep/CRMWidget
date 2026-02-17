@@ -1,0 +1,28 @@
+{
+  "name": "Telegram Integration",
+  "description": "Интеграция Telegram с amoCRM: автоматические заметки, уведомления и связь чатов с сделками/контактами",
+  "version": "1.0.1",
+  "author": "Feder",
+  "icon": "https://via.placeholder.com/128/0088cc/ffffff?text=💬",
+  "scopes": [
+    "crm"
+  ],
+  "install": {
+    "url": "https://nehemiah-unamusable-nikki.ngrok-free.dev/oauth",
+    "redirect_url": "https://nehemiah-unamusable-nikki.ngrok-free.dev/callback"
+  },
+  "hooks": {
+    "webhook_url": "https://nehemiah-unamusable-nikki.ngrok-free.dev/amo-webhook"
+  },
+  "widgets": [
+    {
+      "name": "Telegram Link",
+      "type": "iframe",
+      "url": "https://nehemiah-unamusable-nikki.ngrok-free.dev/widget.html",
+      "placement": [
+        "lead_view",
+        "contact_view"
+      ]
+    }
+  ]
+}
