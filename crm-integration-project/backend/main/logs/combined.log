@@ -159,3 +159,59 @@
 {"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-16T12:57:58.311Z"}
 {"level":"info","message":"Redirecting to OAuth","timestamp":"2026-02-16T12:58:06.286Z","url":"https://podshivalovvfyodor.amocrm.ru/oauth?client_id=bd2854bf-2062-4a09-aef7-a94fd1df2253&redirect_uri=https://nehemiah-unamusable-nikki.ngrok-free.dev/callback&mode=popup"}
 {"level":"info","message":"Redirecting to OAuth","timestamp":"2026-02-16T13:00:35.232Z","url":"https://podshivalovvfyodor.amocrm.ru/oauth?client_id=bd2854bf-2062-4a09-aef7-a94fd1df2253&redirect_uri=https://nehemiah-unamusable-nikki.ngrok-free.dev/callback&mode=popup"}
+{"level":"info","message":"Application started","timestamp":"2026-02-17T17:17:12.539Z"}
+{"endpoint":"/api/v4/account","level":"info","message":"Making request","method":"GET","timestamp":"2026-02-17T17:17:12.543Z"}
+{"level":"info","message":"Registering message.incoming listener","timestamp":"2026-02-17T17:17:12.565Z"}
+{"level":"info","message":"Registering message.outgoing listener","timestamp":"2026-02-17T17:17:12.566Z"}
+{"level":"info","message":"App listening on port 3000","timestamp":"2026-02-17T17:17:12.569Z"}
+{"level":"warn","message":"Token expired, refreshing...","timestamp":"2026-02-17T17:17:13.268Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-17T17:17:13.269Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-17T17:17:13.269Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-17T17:17:13.269Z"}
+{"level":"info","message":"Application started","timestamp":"2026-02-17T17:20:58.619Z"}
+{"endpoint":"/api/v4/account","level":"info","message":"Making request","method":"GET","timestamp":"2026-02-17T17:20:58.621Z"}
+{"level":"info","message":"Registering message.incoming listener","timestamp":"2026-02-17T17:20:58.633Z"}
+{"level":"info","message":"Registering message.outgoing listener","timestamp":"2026-02-17T17:20:58.633Z"}
+{"level":"info","message":"App listening on port 3000","timestamp":"2026-02-17T17:20:58.636Z"}
+{"level":"warn","message":"Token expired, refreshing...","timestamp":"2026-02-17T17:20:59.041Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-17T17:20:59.042Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-17T17:20:59.042Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-17T17:20:59.042Z"}
+{"level":"info","message":"Application started","timestamp":"2026-02-17T17:25:57.588Z"}
+{"endpoint":"/api/v4/account","level":"info","message":"Making request","method":"GET","timestamp":"2026-02-17T17:25:57.590Z"}
+{"level":"info","message":"Registering message.incoming listener","timestamp":"2026-02-17T17:25:57.602Z"}
+{"level":"info","message":"Registering message.outgoing listener","timestamp":"2026-02-17T17:25:57.602Z"}
+{"level":"info","message":"App listening on port 3000","timestamp":"2026-02-17T17:25:57.604Z"}
+{"level":"warn","message":"Token expired, refreshing...","timestamp":"2026-02-17T17:25:58.002Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-17T17:25:58.003Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-17T17:25:58.003Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-17T17:25:58.003Z"}
+{"level":"info","message":"Application started","timestamp":"2026-02-17T17:27:17.575Z"}
+{"endpoint":"/api/v4/account","level":"info","message":"Making request","method":"GET","timestamp":"2026-02-17T17:27:17.576Z"}
+{"level":"info","message":"Registering message.incoming listener","timestamp":"2026-02-17T17:27:17.588Z"}
+{"level":"info","message":"Registering message.outgoing listener","timestamp":"2026-02-17T17:27:17.588Z"}
+{"level":"info","message":"App listening on port 3000","timestamp":"2026-02-17T17:27:17.590Z"}
+{"level":"warn","message":"Token expired, refreshing...","timestamp":"2026-02-17T17:27:18.024Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-17T17:27:18.024Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-17T17:27:18.024Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-17T17:27:18.024Z"}
+{"level":"info","message":"Application started","timestamp":"2026-02-17T20:26:44.037Z"}
+{"endpoint":"/api/v4/account","level":"info","message":"Making request","method":"GET","timestamp":"2026-02-17T20:26:44.042Z"}
+{"level":"info","message":"Registering message.incoming listener","timestamp":"2026-02-17T20:26:44.060Z"}
+{"level":"info","message":"Registering message.outgoing listener","timestamp":"2026-02-17T20:26:44.060Z"}
+{"level":"info","message":"App listening on port 3000","timestamp":"2026-02-17T20:26:44.063Z"}
+{"level":"warn","message":"Token expired, refreshing...","timestamp":"2026-02-17T20:26:44.645Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-17T20:26:44.646Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-17T20:26:44.647Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-17T20:26:44.647Z"}
+{"level":"info","message":"Redirecting to OAuth","subdomain":"podshivalovvfyodor","timestamp":"2026-02-17T20:26:57.423Z","url":"https://podshivalovvfyodor.amocrm.ru/oauth?client_id=bd2854bf-2062-4a09-aef7-a94fd1df2253&redirect_uri=https://nehemiah-unamusable-nikki.ngrok-free.dev/callback&mode=popup&state=eyJzdWJkb21haW4iOiJwb2RzaGl2YWxvdnZmeW9kb3IiLCJ0aW1lc3RhbXAiOjE3NzEzNjAwMTc0MjJ9"}
+{"level":"info","message":"Redirecting to OAuth","subdomain":"podshivalovvfyodor","timestamp":"2026-02-17T20:42:10.271Z","url":"https://podshivalovvfyodor.amocrm.ru/oauth?client_id=bd2854bf-2062-4a09-aef7-a94fd1df2253&redirect_uri=https://nehemiah-unamusable-nikki.ngrok-free.dev/callback&mode=popup&state=eyJzdWJkb21haW4iOiJwb2RzaGl2YWxvdnZmeW9kb3IiLCJ0aW1lc3RhbXAiOjE3NzEzNjA5MzAyNzF9"}
+{"level":"info","message":"Application started","timestamp":"2026-02-19T08:36:24.722Z"}
+{"endpoint":"/api/v4/account","level":"info","message":"Making request","method":"GET","timestamp":"2026-02-19T08:36:24.727Z"}
+{"level":"info","message":"Registering message.incoming listener","timestamp":"2026-02-19T08:36:24.742Z"}
+{"level":"info","message":"Registering message.outgoing listener","timestamp":"2026-02-19T08:36:24.743Z"}
+{"level":"info","message":"App listening on port 3000","timestamp":"2026-02-19T08:36:24.746Z"}
+{"level":"warn","message":"Token expired, refreshing...","timestamp":"2026-02-19T08:36:25.234Z"}
+{"level":"error","message":"No user found for subdomain","subdomain":"podshivalovvfyodor","timestamp":"2026-02-19T08:36:25.235Z"}
+{"error":"No user found for subdomain","level":"error","message":"Failed to connect to amoCRM","timestamp":"2026-02-19T08:36:25.235Z"}
+{"level":"error","message":"amoCRM connection FAILED","timestamp":"2026-02-19T08:36:25.236Z"}
