@@ -1,37 +1,40 @@
 import { Routes, Route, Link } from 'react-router-dom'
+import './App.css'
+import logo from './assets/logo.png'
 
 function Layout({ children }) {
   return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <h2 style={{ margin: 0 }}>CRM Telegram Integration</h2>
+    <div className="app">
+      <header className="header">
+        <h2>Corsa Messanger Integrator</h2>
 
-        <nav style={styles.nav}>
-          <Link to="/">Главная</Link>
-          <Link to="/setup">Настройка</Link>
-          <Link to="/privacy">Политика</Link>
-          <Link to="/requisites">Реквизиты</Link>
+        <nav className="nav">
+          <Link to="/" className="nav-link">Главная</Link>
+          <Link to="/setup" className="nav-link">Настройка</Link>
+          <Link to="/privacy" className="nav-link">Политика</Link>
+          <Link to="/requisites" className="nav-link">Реквизиты</Link>
         </nav>
       </header>
 
-      <div style={styles.content}>{children}</div>
+      <div className="content">{children}</div>
 
-      <footer style={styles.footer}>
-        © 2026 CRM Integration. All rights reserved.
+      <footer className="footer">
+        © 2026 Corsa Messanger Integrator. All rights reserved.
       </footer>
     </div>
   )
 }
 
-/* ===========================
-   PAGES
-=========================== */
-
 function Home() {
   return (
     <Layout>
       <h1>Интеграция Telegram ↔ amoCRM</h1>
-      <p>
+      
+      <div className="logo-wrap">
+        <img src={logo} alt="Corsa Messenger Integrator" />
+      </div>
+
+      <p className="description">
         Безопасная интеграция для обмена сообщениями между Telegram
         и CRM системой.
       </p>
@@ -44,12 +47,14 @@ function Setup() {
     <Layout>
       <h1>Инструкция по подключению</h1>
 
-      <ol>
-        <li>Установите виджет в аккаунте amoCRM</li>
-        <li>Нажмите "Подключить"</li>
-        <li>Авторизуйтесь через OAuth</li>
-        <li>Добавьте Telegram chat ID</li>
-      </ol>
+      <div className="features">
+        <div className="feature">1. Установите виджет в аккаунте amoCRM</div>
+        <div className="feature">2. Нажмите "Подключить"</div>
+        <div className="feature">3. Авторизуйтесь через OAuth</div>
+        <div className="feature">4. Добавьте Telegram chat ID</div>
+      </div>
+
+      <a href="https://corsahelp.netlify.app" className="btn-support">Техническая поддержка</a>
     </Layout>
   )
 }
@@ -58,13 +63,17 @@ function Privacy() {
   return (
     <Layout>
       <h1>Политика конфиденциальности</h1>
-      <p>
-        Мы не передаём персональные данные третьим лицам.
-        Данные используются исключительно для работы интеграции.
-      </p>
-      <p>
-        Хранятся только OAuth токены и ID чатов Telegram.
-      </p>
+
+      <div className="features">
+        <div className="feature">
+          Мы не передаём персональные данные третьим лицам. Данные используются исключительно для работы интеграции.
+        </div>
+        <div className="feature">
+          Хранятся только OAuth токены и ID чатов Telegram.
+        </div>
+      </div>
+
+      <a href="https://corsahelp.netlify.app" className="btn-support">Техническая поддержка</a>
     </Layout>
   )
 }
@@ -74,17 +83,17 @@ function Requisites() {
     <Layout>
       <h1>Реквизиты организации</h1>
 
-      <p><strong>Название:</strong> ООО "CRM Integration"</p>
-      <p><strong>ИНН:</strong> 0000000000</p>
-      <p><strong>ОГРН:</strong> 0000000000000</p>
-      <p><strong>Email:</strong> support@example.com</p>
+      <div className="features">
+        <div className="feature"><strong>Название:</strong> ООО "CRM Integration"</div>
+        <div className="feature"><strong>ИНН:</strong> 0000000000</div>
+        <div className="feature"><strong>ОГРН:</strong> 0000000000000</div>
+        <div className="feature"><strong>Email:</strong> support@example.com</div>
+      </div>
+
+      <a href="https://corsahelp.netlify.app" className="btn-support">Техническая поддержка</a>
     </Layout>
   )
 }
-
-/* ===========================
-   ROUTER
-=========================== */
 
 function App() {
   return (
@@ -95,43 +104,6 @@ function App() {
       <Route path="/requisites" element={<Requisites />} />
     </Routes>
   )
-}
-
-/* ===========================
-   STYLES
-=========================== */
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    fontFamily: 'Inter, sans-serif',
-    background: '#f5f7fa'
-  },
-  header: {
-    background: '#fff',
-    padding: '20px 40px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    boxShadow: '0 5px 20px rgba(0,0,0,0.05)'
-  },
-  nav: {
-    display: 'flex',
-    gap: 20
-  },
-  content: {
-    flex: 1,
-    padding: 60,
-    maxWidth: 900
-  },
-  footer: {
-    background: '#fff',
-    padding: 20,
-    textAlign: 'center',
-    borderTop: '1px solid #eee'
-  }
 }
 
 export default App
