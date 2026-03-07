@@ -8,17 +8,17 @@
     "crm"
   ],
   "install": {
-    "url": "https://nehemiah-unamusable-nikki.ngrok-free.dev/oauth",
-    "redirect_url": "https://nehemiah-unamusable-nikki.ngrok-free.dev/callback"
+    "url": "https://corsa-crm.ru/oauth",
+    "redirect_url": "https://corsa-crm.ru/api/auth/callback"
   },
   "hooks": {
-    "webhook_url": "https://nehemiah-unamusable-nikki.ngrok-free.dev/amo-webhook"
+    "webhook_url": "https://corsa-crm.ru/amo-webhook"
   },
   "widgets": [
     {
       "name": "Telegram Link",
       "type": "iframe",
-      "url": "https://nehemiah-unamusable-nikki.ngrok-free.dev/widget.html",
+      "url": "https://corsa-crm.ru/widget.html",
       "placement": [
         "lead_view",
         "contact_view"
