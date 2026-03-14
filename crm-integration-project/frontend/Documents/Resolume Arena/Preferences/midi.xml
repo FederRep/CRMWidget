@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<midiController enabled="1" midiClockMode="2" octaveNumForMiddleC="4" syncDeviceName="">
+	<versionInfo name="Resolume Arena" majorVersion="7" minorVersion="16" microVersion="0" revision="25503"/>
+	<inputDevices/>
+	<outputDevices/>
+	<controlSurfaces/>
+</midiController>
+

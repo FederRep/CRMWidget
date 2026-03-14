@@ -18,9 +18,12 @@
   --error-bg: #ffebee;
   --warning: #ff9800;
   --warning-bg: #fff3e0;
+<<<<<<< HEAD
   --vk-blue: #0077FF;
   --vk-blue-dark: #0055CC;
   --vk-bg: #e3f2fd;
+=======
+>>>>>>> 42af9a5 (Много что поменялось)
   --shadow-sm: 0 4px 16px rgba(0,0,0,0.06);
   --shadow-md: 0 8px 24px rgba(0, 68, 255, 0.32);
   --shadow-lg: 0 16px 40px rgba(0, 68, 255, 0.18);
@@ -297,6 +300,7 @@ p {
   box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
 }
 
+<<<<<<< HEAD
 /* VK Button */
 .btn-vk-auth {
   display: inline-block;
@@ -320,6 +324,10 @@ p {
 
 /* ============================================================
    AUTH SECTION
+=======
+/* ============================================================
+   AUTH SECTION (NEW)
+>>>>>>> 42af9a5 (Много что поменялось)
 ============================================================ */
 .auth-section {
   margin: 30px auto;
@@ -327,16 +335,23 @@ p {
   background: var(--white);
   border-radius: var(--border-radius-lg);
   text-align: center;
+<<<<<<< HEAD
   max-width: 600px;
+=======
+  max-width: 500px;
+>>>>>>> 42af9a5 (Много что поменялось)
   box-shadow: var(--shadow-sm);
   border: 1px solid rgba(0,68,255,0.1);
 }
 
+<<<<<<< HEAD
 .auth-section h3 {
   margin-bottom: 15px;
   font-size: 1.4rem;
 }
 
+=======
+>>>>>>> 42af9a5 (Много что поменялось)
 /* Error Message */
 .error-message {
   background: var(--error-bg);
@@ -422,6 +437,7 @@ p {
 }
 
 /* ============================================================
+<<<<<<< HEAD
    SETUP PAGE
 ============================================================ */
 .setup-section {
@@ -440,6 +456,8 @@ p {
 }
 
 /* ============================================================
+=======
+>>>>>>> 42af9a5 (Много что поменялось)
    LOADING STATE
 ============================================================ */
 .loading {
@@ -467,7 +485,50 @@ p {
 }
 
 /* ============================================================
+<<<<<<< HEAD
    PRIVACY PAGE
+=======
+   FORMS & INPUTS (для будущих форм)
+============================================================ */
+.input-group {
+  margin: 15px 0;
+  text-align: left;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--primary-medium);
+  font-size: 0.95rem;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 1rem;
+  border: 2px solid rgba(0,68,255,0.2);
+  border-radius: var(--border-radius-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  background: var(--white);
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 68, 255, 0.15);
+}
+
+.input-group input::placeholder {
+  color: var(--text-light);
+}
+
+/* ============================================================
+   PRIVACY PAGE SPECIFIC
+>>>>>>> 42af9a5 (Много что поменялось)
 ============================================================ */
 .privacy-content {
   text-align: left;
@@ -513,6 +574,44 @@ p {
     width: 400px;
     height: 250px;
   }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  .content {
+    padding: 30px 16px;
+  }
+
+  .auth-section,
+  .connected-box,
+  .not-connected-box {
+    padding: 20px 16px;
+    margin: 20px auto;
+  }
+
+  .features {
+    padding: 0 10px;
+  }
+
+  .feature {
+    padding: 1rem 1.5rem;
+    font-size: 1.05rem;
+  }
+
+  .btn-support,
+  .btn-secondary {
+    padding: 14px 36px;
+    font-size: 1.1rem;
+  }
+
+  .setup-section {
+    padding: 0 16px;
+  }
+
+  .setup-title {
+    font-size: 1.5rem;
+  }
 }
 
 @media (max-width: 640px) {
@@ -556,8 +655,12 @@ p {
 
   .btn-support,
   .btn-secondary,
+<<<<<<< HEAD
   .btn-logout,
   .btn-vk-auth {
+=======
+  .btn-logout {
+>>>>>>> 42af9a5 (Много что поменялось)
     width: 100%;
     max-width: 280px;
   }
@@ -588,6 +691,7 @@ input:focus {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+<<<<<<< HEAD
 /* Telegram Button */
 .btn-telegram-auth {
   display: inline-block;
@@ -608,6 +712,8 @@ input:focus {
   transform: translateY(-2px);
   box-shadow: 0 14px 36px rgba(36, 161, 222, 0.4);
 }
+=======
+>>>>>>> 42af9a5 (Много что поменялось)
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {

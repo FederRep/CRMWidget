@@ -13,12 +13,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-
-// 🔐 CORS: разрешаем запросы с домена и локалки (БЕЗ пробелов!)
-app.use(cors({
-  origin: ['https://corsa-crm.ru', 'https://www.corsa-crm.ru', 'http://localhost:3000', 'http://localhost:3001'],
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 const eventBus = new EventEmitter();
@@ -412,10 +407,12 @@ app.get('/oauth', (req, res) => {
   res.redirect(url);
 });
 
-// Callback — ГИБКИЙ РОУТ (поддерживает оба пути)
-app.get(['/callback', '/api/auth/callback'], async (req, res) => {
+/* ============================================================
+   OAUTH CALLBACK
+============================================================ */
+
+app.get('/callback', async (req, res) => {
   const { code, state } = req.query;
-  logger.info('OAuth callback received', { code: code ? 'present' : 'missing', path: req.path });
 
   if (!code) return res.status(400).send('No code');
   if (!state) return res.status(400).send('No state');
@@ -431,7 +428,6 @@ app.get(['/callback', '/api/auth/callback'], async (req, res) => {
 
   try {
     const tokenUrl = `https://${subdomain}.amocrm.ru/oauth2/access_token`;
-    logger.info('Exchanging code for token', { subdomain });
 
     const response = await axios.post(tokenUrl, {
       client_id: process.env.CLIENT_ID,
@@ -439,7 +435,7 @@ app.get(['/callback', '/api/auth/callback'], async (req, res) => {
       grant_type: 'authorization_code',
       code,
       redirect_uri: process.env.REDIRECT_URI
-    }, { headers: { 'Content-Type': 'application/json' } });
+    });
 
     const { access_token, refresh_token, expires_in } = response.data;
     const expiresAt = Math.floor(Date.now() / 1000) + expires_in;
@@ -456,125 +452,17 @@ app.get(['/callback', '/api/auth/callback'], async (req, res) => {
 
     logger.info(`OAuth success for ${subdomain}`);
 
+    // ✅ Успешная авторизация — закрываем окно и уведомляем пользователя
     res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="UTF-8"><title>Authorization Successful</title></head>
-      <body style="font-family:system-ui,sans-serif;text-align:center;padding:50px;">
-        <h2 style="color:#2ecc71;">✅ Authorization successful!</h2>
-        <p>You can close this window and return to amoCRM.</p>
-        <script>
-          if (window.opener && !window.opener.closed) {
-            window.opener.postMessage({ type: 'AUTH_SUCCESS', subdomain: '${subdomain}' }, '*');
-          }
-          setTimeout(() => window.close(), 2000);
-        </script>
-      </body>
-      </html>
+      <h2>Authorization successful ✅</h2>
+      <script>
+        setTimeout(()=>window.close(),1500)
+      </script>
     `);
 
   } catch (err) {
-    logger.error('OAuth failed', { error: err.response?.data || err.message, status: err.response?.status });
-    res.status(500).send(`
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="UTF-8"><title>Authorization Failed</title></head>
-      <body style="font-family:system-ui,sans-serif;text-align:center;padding:50px;">
-        <h2 style="color:#e74c3c;">❌ Authorization failed</h2>
-        <p><code>${err.response?.data?.error || err.message}</code></p>
-        <p>Please try again or contact support.</p>
-      </body>
-      </html>
-    `);
-  }
-});
-
-/* ============================================================
-   💬 VK OAUTH
-============================================================ */
-
-app.get('/api/auth/vk', (req, res) => {
-  const state = crypto.randomBytes(16).toString('hex');
-  const scope = 'offline,messages,groups,photos,wall';
-  
-  const url = `https://oauth.vk.com/authorize` +
-    `?client_id=${process.env.VK_CLIENT_ID}` +
-    `&redirect_uri=${encodeURIComponent(process.env.VK_REDIRECT_URI)}` +
-    `&response_type=code` +
-    `&scope=${scope}` +
-    `&v=${process.env.VK_API_VERSION || '5.199'}`;
-  
-  res.redirect(url);
-});
-
-app.get('/api/auth/vk/callback', async (req, res) => {
-  const { code } = req.query;
-  if (!code) return res.status(400).send('No code provided');
-
-  try {
-    const tokenResponse = await axios.post(
-      'https://oauth.vk.com/access_token',
-      new URLSearchParams({
-        client_id: process.env.VK_CLIENT_ID,
-        client_secret: process.env.VK_CLIENT_SECRET,
-        redirect_uri: process.env.VK_REDIRECT_URI,
-        code
-      }),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
-
-    const { access_token, user_id, expires_in } = tokenResponse.data;
-
-    const profileResponse = await axios.get('https://api.vk.com/method/users.get', {
-      params: {
-        access_token,
-        user_ids: user_id,
-        fields: 'photo_200,first_name,last_name',
-        v: process.env.VK_API_VERSION || '5.199'
-      }
-    });
-
-    const user = profileResponse.data.response[0];
-
-    await new Promise((resolve, reject) => {
-      db.run(
-        `INSERT OR REPLACE INTO vk_users 
-        (vk_user_id, access_token, expires_at, first_name, last_name, photo_url) 
-        VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          user_id,
-          access_token,
-          expires_in === 0 ? null : Math.floor(Date.now() / 1000) + expires_in,
-          user.first_name,
-          user.last_name,
-          user.photo_200
-        ],
-        err => err ? reject(err) : resolve()
-      );
-    });
-
-    logger.info(`VK OAuth success for user ${user_id}`);
-
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="UTF-8"><title>VK Connected</title></head>
-      <body style="font-family:system-ui,sans-serif;text-align:center;padding:50px;">
-        <h2 style="color:#0077FF;">✅ ВКонтакте подключён!</h2>
-        <p>Добро пожаловать, ${user.first_name} ${user.last_name}!</p>
-        <script>
-          if (window.opener && !window.opener.closed) {
-            window.opener.postMessage({ type: 'VK_SUCCESS', userId: '${user_id}' }, '*');
-          }
-          setTimeout(() => window.close(), 2000);
-        </script>
-      </body>
-      </html>
-    `);
-
-  } catch (err) {
-    logger.error('VK OAuth failed', { error: err.response?.data || err.message });
-    res.status(500).send('VK authentication failed');
+    logger.error(err.response?.data || err.message);
+    res.status(500).send('OAuth failed');
   }
 });
 
@@ -862,6 +750,7 @@ app.post('/amo-webhook', async (req, res) => {
       if (!row) return res.json({ ok: true });
 
       try {
+        // ✅ Исправлено: убран лишний пробел в URL
         await axiosTelegram.post(
           `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
           {

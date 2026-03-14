@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<DmxController automapEnabled="1" artNetName="Arena MacBook-Pro-mac.local" bindAdapter="lo0">
+	<versionInfo name="Resolume Arena" majorVersion="7" minorVersion="16" microVersion="0" revision="25503"/>
+	<Inputs/>
+</DmxController>
+

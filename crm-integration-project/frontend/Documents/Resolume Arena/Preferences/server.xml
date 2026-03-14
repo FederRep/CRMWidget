@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ServerController name="ServerController" enabled="0" port="8080" address="0.0.0.0" root="/Users/mac/Documents/Resolume Arena/Webserver">
+	<versionInfo name="Resolume Arena" majorVersion="7" minorVersion="16" microVersion="0" revision="25503"/>
+</ServerController>
+
