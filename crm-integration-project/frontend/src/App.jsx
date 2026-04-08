@@ -1,44 +1,43 @@
-import { Routes, Route, Link } from 'react-router-dom'
+import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import './App.css'
 import logo from './assets/logo.png'
 import AuthPage from './pages/AuthPage'
 import DashboardPage from './pages/DashboardPage'
 
 /* ============================================================
-<<<<<<< HEAD
+   ЗАГЛУШКА ДЛЯ PrivateRoute (если нет отдельного файла)
+   Удали этот блок, если PrivateRoute импортируется из другого места
+============================================================ */
+function PrivateRoute({ children }) {
+  const token = localStorage.getItem('authToken')
+  if (!token) {
+    window.location.href = '/auth'
+    return null
+  }
+  return children
+}
+
+/* ============================================================
+   ЗАГЛУШКА ДЛЯ useAuth (если нет контекста авторизации)
+   Удали этот блок, если useAuth импортируется из ./context/AuthContext
+============================================================ */
+function useAuth() {
+  const token = localStorage.getItem('authToken')
+  return {
+    isAuthenticated: !!token,
+    user: JSON.parse(localStorage.getItem('user') || 'null')
+  }
+}
+
+/* ============================================================
    КОМПОНЕНТ КНОПКИ AUTH (amoCRM OAuth)
-=======
-   КОМПОНЕНТ КНОПКИ AUTH (встроенный)
->>>>>>> 42af9a5 (Много что поменялось)
 ============================================================ */
 function AmoCrmAuthButton({ onSuccess, onError }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-<<<<<<< HEAD
     // Глобальные колбэки для обработки событий amoCRM OAuth
-=======
-    // Загружаем скрипт кнопки amoCRM, если ещё не загружен
-    const scriptId = 'amocrm-auth-script';
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://www.amocrm.ru/auth/button.min.js';
-      script.charset = 'utf-8';
-      script.async = true;
-      script.className = 'amocrm_oauth';
-      script.setAttribute('data-client-id', '7c0980eb-1e92-4101-a202-b5edb4566fb6');
-      script.setAttribute('data-title', 'Подключить amoCRM');
-      script.setAttribute('data-compact', 'false');
-      script.setAttribute('data-color', 'blue');
-      script.setAttribute('data-mode', 'popup');
-      script.setAttribute('data-redirect-uri', 'https://corsa-crm.ru/api/auth/callback');
-      script.setAttribute('data-error-callback', 'amoOAuthError');
-      document.body.appendChild(script);
-    }
-
-    // Глобальные колбэки для обработки событий
->>>>>>> 42af9a5 (Много что поменялось)
     window.amoOAuthSuccess = (data) => {
       console.log('✅ amoCRM OAuth success:', data);
       if (onSuccess) onSuccess(data);
@@ -49,7 +48,6 @@ function AmoCrmAuthButton({ onSuccess, onError }) {
       if (onError) onError(error);
     };
 
-<<<<<<< HEAD
     // 🔥 Динамически создаём и добавляем скрипт кнопки
     const script = document.createElement('script');
     script.className = 'amocrm_oauth';
@@ -72,16 +70,11 @@ function AmoCrmAuthButton({ onSuccess, onError }) {
       if (document.body.contains(script)) {
         document.body.removeChild(script);
       }
-=======
-    return () => {
-      // Очистка (опционально)
->>>>>>> 42af9a5 (Много что поменялось)
       delete window.amoOAuthSuccess;
       delete window.amoOAuthError;
     };
-  }, [onSuccess, onError, navigate]);
+  }, [onSuccess, onError]); // navigate убран, т.к. не используется
 
-<<<<<<< HEAD
   // Контейнер, куда amoCRM вставит кнопку
   return (
     <div 
@@ -210,23 +203,6 @@ function TelegramAuthButton({ onSuccess, onError }) {
     >
       ✈️ Подключить Telegram
     </button>
-=======
-  return (
-    <div className="amo-auth-wrapper">
-      <script
-        className="amocrm_oauth"
-        charset="utf-8"
-        data-client-id="7c0980eb-1e92-4101-a202-b5edb4566fb6"
-        data-title="Подключить amoCRM"
-        data-compact="false"
-        data-color="blue"
-        data-mode="popup"
-        data-redirect-uri="https://corsa-crm.ru/api/auth/callback"
-        data-error-callback="amoOAuthError"
-        src="https://www.amocrm.ru/auth/button.min.js"
-      />
-    </div>
->>>>>>> 42af9a5 (Много что поменялось)
   );
 }
 
@@ -290,7 +266,6 @@ function Layout({ children }) {
 }
 
 /* ============================================================
-<<<<<<< HEAD
    HOME (с кнопками авторизации — Telegram, amoCRM, VK)
 ============================================================ */
 function Home() {
@@ -310,82 +285,9 @@ function Home() {
     alert('✅ ВКонтакте успешно подключён!');
   };
 
-=======
-   HOME (с кнопкой авторизации)
-============================================================ */
-function Home() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const SUBDOMAIN = 'podshivalovvfyodor'; // Твой субдомен
-
-  // Проверка статуса авторизации при загрузке
-  useEffect(() => {
-    checkAuthStatus();
-    
-    // Слушаем сообщение от окна авторизации (postMessage)
-    const handleMessage = (event) => {
-      if (event.data?.type === 'AUTH_SUCCESS') {
-        console.log('📨 Received AUTH_SUCCESS message');
-        checkAuthStatus();
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  const checkAuthStatus = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/auth/status?subdomain=${SUBDOMAIN}`);
-      const data = await response.json();
-      setIsConnected(data.authorized);
-      setError(null);
-    } catch (err) {
-      console.error('Auth check failed:', err);
-      setError('Не удалось проверить статус подключения');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAuthSuccess = (data) => {
-    console.log('🎉 Авторизация прошла успешно!', data);
-    // После успеха — проверяем статус и обновляем UI
-    checkAuthStatus();
-  };
-
-  const handleAuthError = (error) => {
-    console.error('❌ Ошибка авторизации:', error);
-    setError('Не удалось подключиться к amoCRM. Попробуйте ещё раз.');
-  };
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subdomain: SUBDOMAIN })
-      });
-      setIsConnected(false);
-    } catch (err) {
-      console.error('Logout failed:', err);
-    }
-  };
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="loading">Проверка подключения...</div>
-      </Layout>
-    );
-  }
-
->>>>>>> 42af9a5 (Много что поменялось)
   return (
     <Layout>
-      <h1>Интеграция Telegram ↔ amoCrm</h1>
+      <h1>Интеграция Telegram ↔ amoCRM</h1>
       
       <div className="logo-wrap">
         <img src={logo} alt="Corsa Messenger Integrator" />
@@ -442,11 +344,7 @@ function Home() {
 }
 
 /* ============================================================
-<<<<<<< HEAD
    SETUP (с инструкциями для всех платформ)
-=======
-   SETUP
->>>>>>> 42af9a5 (Много что поменялось)
 ============================================================ */
 function Setup() {
   return (
@@ -464,7 +362,6 @@ function Setup() {
         </div>
       </div>
 
-<<<<<<< HEAD
       {/* amoCRM */}
       <div className="setup-section">
         <h2 className="setup-title">🦀 amoCRM</h2>
@@ -487,8 +384,6 @@ function Setup() {
         </div>
       </div>
 
-=======
->>>>>>> 42af9a5 (Много что поменялось)
       <a href="https://corsahelp.netlify.app" className="btn-support" target="_blank" rel="noopener noreferrer">Техническая поддержка</a>
     </Layout>
   )
@@ -660,6 +555,9 @@ function Requisites() {
   )
 }
 
+/* ============================================================
+   MAIN APP COMPONENT (ЕДИНАЯ ТОЧКА ВХОДА)
+============================================================ */
 function App() {
   return (
     <Routes>
@@ -679,8 +577,6 @@ function App() {
   )
 }
 
-function App() {
-  return <AppRoutes />
-}
+
 
 export default App
