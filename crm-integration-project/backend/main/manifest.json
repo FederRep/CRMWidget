@@ -1,28 +1,97 @@
 {
-  "name": "Telegram Integration",
-  "description": "Интеграция Telegram с amoCRM: автоматические заметки, уведомления и связь чатов с сделками/контактами",
-  "version": "1.0.1",
-  "author": "Feder",
-  "icon": "https://via.placeholder.com/128/0088cc/ffffff?text=💬",
-  "scopes": [
-    "crm"
-  ],
-  "install": {
-    "url": "https://corsa-crm.ru/oauth",
-    "redirect_url": "https://corsa-crm.ru/api/auth/callback"
+  "widget": {
+    "name": "widget.name",
+    "description": "widget.description",
+    "short_description": "widget.short_description",
+    "version": "1.0.1",
+    "interface_version": 2,
+    "init_once": true,
+    "locale": [
+      "ru",
+      "en"
+    ],
+    "installation": true,
+    "support": {
+      "link": "https://corsahelp.netlify.app",
+      "email": "Corsa.integration@yandex.ru"
+    }
   },
-  "hooks": {
+  "locations": [
+    "ccard-1",
+    "clist-0",
+    "lcard-1",
+    "llist-0",
+    "settings",
+    "digital_pipeline",
+    "advanced_settings",
+    "salesbot_designer"
+  ],
+  "tour": {
+    "is_tour": true,
+    "tour_images": {
+      "ru": [
+        "images/logo_main.png",
+        "images/tour-step1.png",
+        "images/tour-step2.png"
+      ],
+      "en": [
+        "images/logo_main.png",
+        "images/tour-step1-en.png",
+        "images/tour-step2-en.png"
+      ]
+    },
+    "tour_description": "widget.tour_description"
+  },
+  "settings": {
+    "login": {
+      "name": "settings.login",
+      "type": "users",
+      "required": true
+    }
+  },
+  "dp": {
+    "settings": {
+      "message": {
+        "name": "dp.message",
+        "type": "text",
+        "required": true
+      }
+    },
+    "action_multiple": false,
     "webhook_url": "https://corsa-crm.ru/amo-webhook"
   },
-  "widgets": [
-    {
-      "name": "Telegram Link",
-      "type": "iframe",
-      "url": "https://corsa-crm.ru/widget.html",
-      "placement": [
-        "lead_view",
-        "contact_view"
-      ]
+  "advanced": {
+    "title": "advanced.title"
+  },
+  "salesbot_designer": {
+    "handler_code": {
+      "name": "salesbot.handler_name",
+      "settings": {
+        "button_title": {
+          "name": "salesbot.button_title",
+          "type": "text",
+          "default_value": "salesbot.button_title_default_value",
+          "manual": true
+        },
+        "button_caption": {
+          "name": "salesbot.button_caption",
+          "type": "text",
+          "default_value": "salesbot.button_caption_default_value",
+          "manual": true
+        },
+        "text": {
+          "name": "salesbot.text",
+          "type": "text"
+        },
+        "number": {
+          "name": "salesbot.number",
+          "type": "numeric"
+        },
+        "url": {
+          "name": "salesbot.url",
+          "type": "url"
+        }
+      }
     }
-  ]
+  }
 }

@@ -1,0 +1,22 @@
+{
+  "widget.name": "Corsa Messenger Integrator",
+  "widget.description": "Integration of messengers with amoCRM",
+  "widget.short_description": "Integration of Telegram, VK and other messengers with amoCRM",
+  "widget.tour_description": "Connect messengers to receive notifications and manage dialogs from amoCRM",
+  "settings.login": "User login",
+  "settings.enable_notifications": "Enable notifications",
+  "settings.notification_channels": "Notification channels",
+  "settings.channel_telegram": "Telegram",
+  "settings.channel_vk": "VK",
+  "dp.message": "Integration message",
+  "dp.integration_message": "Integration message",
+  "advanced.title": "Advanced settings",
+  "salesbot.handler_name": "Salesbot handler",
+  "salesbot.button_title": "Button title",
+  "salesbot.button_title_default_value": "Default button",
+  "salesbot.button_caption": "Button caption",
+  "salesbot.button_caption_default_value": "Default caption",
+  "salesbot.text": "Text",
+  "salesbot.number": "Number",
+  "salesbot.url": "URL"
+}

@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
+import { useTheme } from '../ThemeContext'
+import LiquidEther from '../../LiquidEther/LiquidEther'
 import './AuthPage.css'
 
 function AuthPage() {
@@ -13,6 +15,7 @@ function AuthPage() {
   
   const { login, register } = useAuth()
   const navigate = useNavigate()
+  const { isDark } = useTheme()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -42,6 +45,25 @@ function AuthPage() {
 
   return (
     <div className="auth-page">
+      <div className="liquid-ether-background">
+        <LiquidEther
+          colors={isDark ? ['#2f00ed', '#0011ff', '#0044FF'] : ['#2f00ed', '#0011ff', '#0044FF']}
+          mouseForce={40}
+          cursorSize={80}
+          isViscous
+          viscous={30}
+          iterationsViscous={16}
+          iterationsPoisson={8}
+          resolution={0.4}
+          isBounce={false}
+          autoDemo
+          autoSpeed={0.2}
+          autoIntensity={2.2}
+          takeoverDuration={0.25}
+          autoResumeDelay={3000}
+          autoRampDuration={0.6}
+        />
+      </div>
       <div className="auth-card">
         <div className="auth-header">
           <h2>{isLogin ? 'Вход в аккаунт' : 'Регистрация'}</h2>

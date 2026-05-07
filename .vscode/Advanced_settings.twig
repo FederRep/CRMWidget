@@ -1,0 +1,211 @@
+<form class="advanced-settings" id="{{ widget_code }}__advanced-settings">
+	<div class="{{ widget_code }}__white_block__description">
+		<h1>{{ title }}</h1>
+		
+		<!-- Основные настройки -->
+		<div class="setting-group">
+			<label for="{{ widget_code }}__api_timeout">
+				{{ __('advanced.api_timeout.label') }}
+			</label>
+			<input 
+				type="number" 
+				id="{{ widget_code }}__api_timeout"
+				name="api_timeout" 
+				value="{{ api_timeout|default(30) }}"
+				min="5"
+				max="300"
+				placeholder="{{ __('advanced.api_timeout.placeholder') }}"
+			>
+			<small class="help-text">{{ __('advanced.api_timeout.help') }}</small>
+		</div>
+		
+		<div class="setting-group">
+			<label>
+				<input 
+					type="checkbox" 
+					name="enable_debug_logs" 
+					{% if enable_debug_logs %}checked{% endif %}
+				>
+				{{ __('advanced.debug_logs.label') }}
+			</label>
+			<small class="help-text">{{ __('advanced.debug_logs.help') }}</small>
+		</div>
+		
+		<div class="setting-group">
+			<label>
+				<input 
+					type="checkbox" 
+					name="sync_contacts_on_connect" 
+					{% if sync_contacts_on_connect %}checked{% endif %}
+				>
+				{{ __('advanced.sync_contacts.label') }}
+			</label>
+			<small class="help-text">{{ __('advanced.sync_contacts.help') }}</small>
+		</div>
+		
+		<!-- Настройки уведомлений -->
+		<div class="setting-group">
+			<h3>{{ __('advanced.notifications.title') }}</h3>
+			
+			<label>
+				<input 
+					type="checkbox" 
+					name="notify_new_leads" 
+					{% if notify_new_leads %}checked{% endif %}
+				>
+				{{ __('advanced.notifications.new_leads') }}
+			</label>
+			
+			<label>
+				<input 
+					type="checkbox" 
+					name="notify_status_changes" 
+					{% if notify_status_changes %}checked{% endif %}
+				>
+				{{ __('advanced.notifications.status_changes') }}
+			</label>
+			
+			<label>
+				<input 
+					type="checkbox" 
+					name="notify_task_reminders" 
+					{% if notify_task_reminders %}checked{% endif %}
+				>
+				{{ __('advanced.notifications.task_reminders') }}
+			</label>
+		</div>
+		
+		<!-- Настройки интеграций -->
+		<div class="setting-group">
+			<h3>{{ __('advanced.integrations.title') }}</h3>
+			
+			<label for="{{ widget_code }}__telegram_webhook_url">
+				{{ __('advanced.telegram.webhook_label') }}
+			</label>
+			<input 
+				type="url" 
+				id="{{ widget_code }}__telegram_webhook_url"
+				name="telegram_webhook_url" 
+				value="{{ telegram_webhook_url|default('') }}"
+				placeholder="{{ __('advanced.telegram.webhook_placeholder') }}"
+			>
+			
+			<label for="{{ widget_code }}__vk_group_id">
+				{{ __('advanced.vk.group_label') }}
+			</label>
+			<input 
+				type="text" 
+				id="{{ widget_code }}__vk_group_id"
+				name="vk_group_id" 
+				value="{{ vk_group_id|default('') }}"
+				placeholder="{{ __('advanced.vk.group_placeholder') }}"
+			>
+		</div>
+		
+		<!-- Кнопка сохранения -->
+		<div class="setting-actions">
+			<button type="submit" class="btn btn-primary">
+				{{ __('advanced.save_button') }}
+			</button>
+			<button type="button" class="btn btn-secondary" onclick="resetAdvancedSettings()">
+				{{ __('advanced.reset_button') }}
+			</button>
+		</div>
+	</div>
+</form>
+
+<style>
+.advanced-settings {
+	padding: 20px;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.setting-group {
+	margin-bottom: 25px;
+	padding: 15px;
+	border: 1px solid #e0e0e0;
+	border-radius: 8px;
+	background: #fafafa;
+}
+
+.setting-group h3 {
+	color: #333;
+	margin-bottom: 15px;
+	border-bottom: 2px solid #0044FF;
+	padding-bottom: 5px;
+}
+
+.setting-group label {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 10px;
+	font-weight: 500;
+}
+
+.setting-group input[type="text"],
+.setting-group input[type="number"],
+.setting-group input[type="url"] {
+	width: 100%;
+	padding: 10px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.setting-group input[type="checkbox"] {
+	width: auto;
+}
+
+.help-text {
+	display: block;
+	color: #666;
+	font-size: 0.9em;
+	margin-top: 5px;
+}
+
+.setting-actions {
+	display: flex;
+	gap: 10px;
+	margin-top: 20px;
+}
+
+.btn {
+	padding: 12px 24px;
+	border: none;
+	border-radius: 50px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.btn-primary {
+	background: #0044FF;
+	color: white;
+}
+
+.btn-primary:hover {
+	background: #002DA8;
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.btn-secondary {
+	background: #f5f5f5;
+	color: #333;
+	border: 1px solid #ddd;
+}
+
+.btn-secondary:hover {
+	background: #e0e0e0;
+}
+</style>
+
+<script>
+function resetAdvancedSettings() {
+	const form = document.getElementById('{{ widget_code }}__advanced-settings');
+	if (confirm('{{ __("advanced.reset_confirm") }}')) {
+		form.reset();
+	}
+}
+</script>

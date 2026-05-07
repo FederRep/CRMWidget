@@ -12,6 +12,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Global animation variable fallback for files that import index.css */
+:root { --anim-fast: 160ms; --anim-medium: 260ms; --anim-slow: 420ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
 .loading {
   display: flex;
   justify-content: center;
