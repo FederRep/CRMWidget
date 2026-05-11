@@ -662,6 +662,7 @@
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-align: left;
@@ -2044,6 +2045,414 @@
 .btn-add-integration:hover {
   transform: translateY(-3px) scale(1.02);
   box-shadow: 0 8px 24px rgba(0, 68, 255, 0.3);
+}
+
+.telegram-connect-card {
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  background: var(--modal-bg);
+}
+
+.telegram-connect-card h4 {
+  margin: 0 0 8px;
+  color: var(--text-dark);
+}
+
+.telegram-connect-card p {
+  margin: 0 0 12px;
+  color: var(--text-soft);
+}
+
+.telegram-method-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.telegram-method-btn {
+  border: 1px solid var(--border-light);
+  background: var(--white);
+  color: var(--text-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.telegram-method-btn.active {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.telegram-subdomain-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.telegram-subdomain-row input {
+  flex: 1;
+  min-width: 260px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--text-dark);
+}
+
+.telegram-status {
+  margin-top: 10px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.telegram-qr-wrap {
+  margin-top: 12px;
+}
+
+.telegram-qr-wrap img {
+  width: 220px;
+  height: 220px;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: white;
+  padding: 6px;
+}
+
+/* ===== Messenger card grid ===== */
+.messenger-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.messenger-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border: 2px solid var(--border-light);
+  border-radius: 12px;
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+}
+
+.messenger-card:hover {
+  border-color: var(--primary);
+  background: var(--hover-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 12px rgba(0, 68, 255, 0.1);
+}
+
+.messenger-card.selected {
+  border-color: var(--primary);
+  background: var(--hover-bg);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.messenger-card.connected {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.06);
+}
+
+.messenger-card.connected .messenger-card-name {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.messenger-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 0.75rem;
+  color: #16a34a;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.messenger-card img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.messenger-card-name {
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+/* ===== Telegram modal: success state ===== */
+.tg-success-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 0 8px;
+  text-align: center;
+}
+
+.tg-success-icon {
+  font-size: 2.8rem;
+  line-height: 1;
+}
+
+.tg-success-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.tg-success-name {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-soft);
+}
+
+/* ===== Telegram modal: error message ===== */
+.tg-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.88rem;
+}
+
+.tg-error-icon {
+  flex-shrink: 0;
+}
+
+/* ===== Telegram modal: progress bar ===== */
+.tg-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tg-progress-bar {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--border-light);
+  overflow: hidden;
+}
+
+@keyframes tg-fill {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes tg-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.tg-progress-fill {
+  height: 100%;
+  width: 40%;
+  background: var(--primary);
+  border-radius: 4px;
+  animation: tg-fill 1.4s ease-in-out infinite;
+}
+
+.tg-progress-pulse {
+  height: 100%;
+  width: 100%;
+  background: var(--primary);
+  border-radius: 4px;
+  animation: tg-pulse 1.6s ease-in-out infinite;
+}
+
+.tg-progress-label {
+  font-size: 0.82rem;
+  color: var(--text-soft);
+}
+
+/* ===== Telegram modal: cancel button ===== */
+.tg-cancel-btn {
+  background: none;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: #dc2626;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tg-cancel-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #dc2626;
+}
+
+/* ===== Telegram modal: error status ===== */
+.tg-status-error {
+  color: #dc2626 !important;
+}
+
+/* ===== Hint in add-modal when Telegram not connected ===== */
+.tg-connect-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 8px;
+  font-size: 0.87rem;
+  color: #92400e;
+  cursor: pointer;
+}
+
+/* ===== Multi-integration: Telegram connected row ===== */
+.integration-row.tg-row-connected {
+  border: 2px solid #22c55e;
+  background: rgba(34, 197, 94, 0.06);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.tg-row-badge {
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* ===== Стили для модального окна подключения Telegram ===== */
+.tg-setup-modal {
+  max-width: 480px;
+  width: 92%;
+}
+
+.tg-setup-overlay {
+  z-index: 1100;
+}
+
+.tg-connect-options {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 0;
+}
+
+.tg-connect-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 2px solid var(--border-light);
+  border-radius: 14px;
+  background: var(--card-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.tg-connect-option-btn:hover {
+  border-color: var(--primary);
+  background: var(--hover-bg);
+  box-shadow: 0 4px 16px rgba(0, 68, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.tg-option-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.tg-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tg-option-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.tg-option-desc {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+.tg-account-section,
+.tg-bot-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tg-section-hint {
+  margin: 0;
+  color: var(--text-dark);
+  font-size: 0.95rem;
+}
+
+.tg-section-sub {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
+.tg-section-sub a {
+  color: var(--primary);
+}
+
+.tg-token-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--border-light);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: var(--card-bg);
+  color: var(--text-dark);
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.tg-token-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(0, 68, 255, 0.1);
+}
+
+.tg-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.tg-back-btn {
+  background: none;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tg-back-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--hover-bg);
 }
 
 /* ===== Стили для модального окна добавления интеграции ===== */

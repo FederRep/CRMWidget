@@ -9,6 +9,10 @@ import whatsappIcon from '../icons/w.svg';
 import vkIcon from '../icons/v.svg';
 import linkedinIcon from '../icons/l.svg';
 import defaultIcon from '../icons/d.svg';
+import accountIcon from '../icons/account.svg';
+import botIcon from '../icons/bot.svg';
+import acceptIcon from '../icons/accept.svg';
+import noIcon from '../icons/no.svg';
 
 const IconImage = ({ src, alt, className, size = 24 }) => (
   <img src={src} alt={alt} className={className} style={{ width: `${size}px`, height: `${size}px`, objectFit: 'contain' }} />
@@ -49,7 +53,7 @@ function SubscriptionsTab({ integrations }) {
 }
 
 // ===== 3. Вкладка Интеграции (с функцией назначения ролей) =====
-function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMessage, setIntegrations, openAddModalFromPricing, preselectedTariff, setOpenAddModalFromPricing }) {
+function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, showMessage, setIntegrations, openAddModalFromPricing, preselectedTariff, setOpenAddModalFromPricing }) {
   const [selectedIntegration, setSelectedIntegration] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [assignments, setAssignments] = useState({});
@@ -58,6 +62,21 @@ function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMes
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [singleIntegration, setSingleIntegration] = useState({ type: '', tariff: '' });
   const [multipleIntegrations, setMultipleIntegrations] = useState([{ id: 1, type: '', tariff: '' }]);
+  const [telegramSetupOpen, setTelegramSetupOpen] = useState(false);
+  const [telegramSetupType, setTelegramSetupType] = useState(null);
+  const [telegramBotToken, setTelegramBotToken] = useState('');
+  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [telegramBotValidating, setTelegramBotValidating] = useState(false);
+  const [telegramBotError, setTelegramBotError] = useState('');
+  const [telegramBotInfo, setTelegramBotInfo] = useState(null);
+  const [telegramMethod, setTelegramMethod] = useState('bot');
+  const [telegramSubdomain, setTelegramSubdomain] = useState(
+    localStorage.getItem('telegram_subdomain') || user?.amo_subdomain || ''
+  );
+  const [telegramQr, setTelegramQr] = useState(null);
+  const [telegramSessionId, setTelegramSessionId] = useState(null);
+  const [telegramStatus, setTelegramStatus] = useState('');
+  const [telegramConnecting, setTelegramConnecting] = useState(false);
 
   // Handle opening modal from PricingPage
   useEffect(() => {
@@ -116,12 +135,101 @@ function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMes
     },
   ];
 
+  useEffect(() => {
+    if (!telegramSubdomain) return;
+    localStorage.setItem('telegram_subdomain', telegramSubdomain);
+  }, [telegramSubdomain]);
+
+  useEffect(() => {
+    if (!telegramSessionId) return undefined;
+
+    const pollId = setInterval(async () => {
+      try {
+        const statusRes = await fetch(`/api/auth/telegram/qr/${telegramSessionId}`);
+        const statusData = await statusRes.json();
+
+        if (statusData.status === 'authorized') {
+          setTelegramStatus('Подключено. Telegram аккаунт авторизован ✅');
+          setTelegramConnected(true);
+          setTelegramConnecting(false);
+          clearInterval(pollId);
+        } else if (statusData.status === 'expired') {
+          setTelegramStatus('QR-сессия истекла. Сгенерируй новый код.');
+          setTelegramConnecting(false);
+          clearInterval(pollId);
+        } else {
+          setTelegramStatus('Ожидание сканирования QR...');
+        }
+      } catch (e) {
+        setTelegramStatus('Ошибка проверки статуса QR-сессии');
+      }
+    }, 2500);
+
+    return () => clearInterval(pollId);
+  }, [telegramSessionId]);
+
+  const handleGenerateTelegramQr = async () => {
+    try {
+      setTelegramConnecting(true);
+      setTelegramStatus('Готовим QR...');
+      setTelegramQr(null);
+      setTelegramSessionId(null);
+
+      const qs = telegramSubdomain.trim()
+        ? `?subdomain=${encodeURIComponent(telegramSubdomain.trim().toLowerCase())}`
+        : '';
+      const response = await fetch(`/api/auth/telegram/qr${qs}`, { method: 'GET' });
+      const data = await response.json();
+
+      if (!data.sessionId || !data.qrImage) {
+        throw new Error('Invalid QR payload');
+      }
+
+      setTelegramQr(data.qrImage);
+      setTelegramSessionId(data.sessionId);
+      setTelegramStatus('Отсканируйте QR в Telegram');
+    } catch (error) {
+      setTelegramConnecting(false);
+      setTelegramStatus('Не удалось создать QR. Проверьте backend.');
+    }
+  };
+
+  const handleConnectBotToken = async () => {
+    if (!telegramBotToken.trim()) return;
+    setTelegramBotValidating(true);
+    setTelegramBotError('');
+    setTelegramBotInfo(null);
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${telegramBotToken.trim()}/getMe`);
+      const data = await res.json();
+      if (data.ok) {
+        setTelegramBotInfo(data.result);
+        setTelegramConnected(true);
+      } else {
+        setTelegramBotError('Бот не найден или токен недействителен');
+      }
+    } catch (e) {
+      setTelegramBotError('Ошибка подключения. Проверьте токен и повторите.');
+    } finally {
+      setTelegramBotValidating(false);
+    }
+  };
+
+  const handleMessengerCardClick = (typeId) => {
+    setSingleIntegration(prev => ({ ...prev, type: typeId }));
+  };
+
   const handleOpenAddModal = () => {
     setAddIntegrationModalOpen(true);
     setAddModalTab('single');
     setBillingCycle('monthly');
     setSingleIntegration({ type: '', tariff: '' });
     setMultipleIntegrations([{ id: 1, type: '', tariff: '' }]);
+    setTelegramConnected(false);
+    setTelegramBotInfo(null);
+    setTelegramBotError('');
+    setTelegramQr(null);
+    setTelegramStatus('');
   };
 
   const handleCloseAddModal = () => {
@@ -130,12 +238,39 @@ function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMes
 
   const handleSingleIntegrationChange = (field, value) => {
     setSingleIntegration(prev => ({ ...prev, [field]: value }));
+    if (field === 'tariff' && value && singleIntegration.type === 'Telegram' && !telegramConnected) {
+      setTelegramSetupOpen(true);
+      setTelegramSetupType(null);
+      setTelegramBotToken('');
+      setTelegramBotError('');
+      setTelegramBotInfo(null);
+      setTelegramQr(null);
+      setTelegramSessionId(null);
+      setTelegramStatus('');
+    }
   };
 
   const handleMultipleIntegrationChange = (id, field, value) => {
     setMultipleIntegrations(prev => prev.map(item => 
       item.id === id ? { ...item, [field]: value } : item
     ));
+    if (!telegramConnected) {
+      const item = multipleIntegrations.find(i => i.id === id);
+      if (item) {
+        const newType = field === 'type' ? value : item.type;
+        const newTariff = field === 'tariff' ? value : item.tariff;
+        if (newType === 'Telegram' && newTariff) {
+          setTelegramSetupOpen(true);
+          setTelegramSetupType(null);
+          setTelegramBotToken('');
+          setTelegramBotError('');
+          setTelegramBotInfo(null);
+          setTelegramQr(null);
+          setTelegramSessionId(null);
+          setTelegramStatus('');
+        }
+      }
+    }
   };
 
   const addMultipleIntegrationRow = () => {
@@ -166,7 +301,9 @@ function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMes
 
   const canShowPayButton = () => {
     if (addModalTab === 'single') {
-      return singleIntegration.type && singleIntegration.tariff;
+      if (!singleIntegration.type || !singleIntegration.tariff) return false;
+      if (singleIntegration.type === 'Telegram' && !telegramConnected) return false;
+      return true;
     } else {
       return multipleIntegrations.every(item => item.type && item.tariff);
     }
@@ -194,7 +331,9 @@ function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMes
         newIntegrations.push({
           id: Date.now(),
           type: singleIntegration.type,
-          name: `${singleIntegration.type} канал`,
+          name: singleIntegration.type === 'Telegram'
+            ? `Telegram ${telegramSetupType === 'bot' ? 'бот' : 'аккаунт'}`
+            : `${singleIntegration.type} канал`,
           status: 'active',
           subscriptionStatus: 'active',
           tariff: singleIntegration.tariff,
@@ -209,7 +348,9 @@ function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMes
           newIntegrations.push({
             id: Date.now() + index,
             type: item.type,
-            name: `${item.type} канал ${index + 1}`,
+            name: item.type === 'Telegram'
+              ? `Telegram ${telegramSetupType === 'bot' ? 'бот' : 'аккаунт'} ${index + 1}`
+              : `${item.type} канал ${index + 1}`,
             status: 'active',
             subscriptionStatus: 'active',
             tariff: item.tariff,
@@ -268,6 +409,7 @@ function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMes
         </div>
         <button className="btn-add-integration" onClick={handleOpenAddModal}>+ Добавить интеграцию</button>
       </div>
+
       {integrations.length === 0 ? <div className="empty-state"><p>У вас пока нет интеграций</p></div> : (
         <>
           <div className="integrations-table">
@@ -376,17 +518,25 @@ function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMes
               {addModalTab === 'single' ? (
                 <div className="single-integration-form">
                   <div className="form-group">
-                    <label>Тип интеграции</label>
-                    <select 
-                      className="modal-select"
-                      value={singleIntegration.type}
-                      onChange={(e) => handleSingleIntegrationChange('type', e.target.value)}
-                    >
-                      <option value="">Выберите тип</option>
-                      {integrationTypes.map(type => (
-                        <option key={type.id} value={type.id}>{type.name}</option>
-                      ))}
-                    </select>
+                    <label>Выберите мессенджер</label>
+                    <div className="messenger-grid">
+                      {integrationTypes.map(type => {
+                        const isConnected = type.id === 'Telegram' && telegramConnected;
+                        const isSelected = singleIntegration.type === type.id;
+                        return (
+                          <button
+                            key={type.id}
+                            type="button"
+                            className={`messenger-card${isSelected ? ' selected' : ''}${isConnected ? ' connected' : ''}`}
+                            onClick={() => handleMessengerCardClick(type.id)}
+                          >
+                            {isConnected && <span className="messenger-badge"><IconImage src={acceptIcon} alt="✓" size={16} /></span>}
+                            <IconImage src={getTypeIcon(type.id)} alt={type.name} />
+                            <span className="messenger-card-name">{type.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div className="form-group">
                     <label>Тариф</label>
@@ -410,9 +560,9 @@ function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMes
               ) : (
                 <div className="multiple-integrations-form">
                   {multipleIntegrations.map((item, index) => (
-                    <div key={item.id} className="integration-row">
+                    <div key={item.id} className={`integration-row${item.type === 'Telegram' && telegramConnected ? ' tg-row-connected' : ''}`}>
                       <div className="form-group">
-                        <label>Интеграция #{index + 1}</label>
+                        <label>Интеграция #{index + 1}{item.type === 'Telegram' && telegramConnected && <IconImage src={acceptIcon} alt="✓" size={16} className="tg-row-badge" />}</label>
                         <div className="integration-row-inputs">
                           <select 
                             className="modal-select"
@@ -468,6 +618,117 @@ function IntegrationsTab({ integrations, employees, updateEmployeeRoles, showMes
               <button className="modal-cancel" onClick={handleCloseAddModal}>Отмена</button>
               {canShowPayButton() && (
                 <button className="modal-pay" onClick={handlePay}>Оплатить</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно подключения Telegram — рендерится ПОСЛЕ основного, поверх */}
+      {telegramSetupOpen && (
+        <div className="modal-overlay tg-setup-overlay" onClick={() => setTelegramSetupOpen(false)}>
+          <div className="modal-content tg-setup-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Подключить Telegram</h3>
+              <button className="modal-close" onClick={() => setTelegramSetupOpen(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {!telegramSetupType ? (
+                <div className="tg-connect-options">
+                  <button className="tg-connect-option-btn" onClick={() => { setTelegramSetupType('account'); handleGenerateTelegramQr(); }}>
+                    <span className="tg-option-icon"><IconImage src={accountIcon} alt="Аккаунт" size={36} /></span>
+                    <div className="tg-option-text">
+                      <span className="tg-option-title">Аккаунт (пользователь)</span>
+                      <span className="tg-option-desc">Войдите в Telegram через QR-код для авторизации</span>
+                    </div>
+                  </button>
+                  <button className="tg-connect-option-btn" onClick={() => setTelegramSetupType('bot')}>
+                    <span className="tg-option-icon"><IconImage src={botIcon} alt="Бот" size={36} /></span>
+                    <div className="tg-option-text">
+                      <span className="tg-option-title">Бот</span>
+                      <span className="tg-option-desc">Введите токен вашего Telegram-бота</span>
+                    </div>
+                  </button>
+                </div>
+              ) : telegramSetupType === 'bot' ? (
+                <div className="tg-bot-section">
+                  {telegramConnected && telegramBotInfo ? (
+                    <div className="tg-success-state">
+                      <div className="tg-success-icon"><IconImage src={acceptIcon} alt="Успех" size={48} /></div>
+                      <p className="tg-success-title">Бот успешно подключён!</p>
+                      <p className="tg-success-name">@{telegramBotInfo.username} · {telegramBotInfo.first_name}</p>
+                      <button className="modal-save" onClick={() => setTelegramSetupOpen(false)}>Готово</button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="tg-section-hint">Введите токен вашего Telegram-бота.</p>
+                      <p className="tg-section-sub">Получите токен у <a href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</a> в Telegram.</p>
+                      <input
+                        type="text"
+                        className="tg-token-input"
+                        placeholder="1234567890:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+                        value={telegramBotToken}
+                        onChange={(e) => { setTelegramBotToken(e.target.value); setTelegramBotError(''); }}
+                      />
+                      {telegramBotError && <div className="tg-error-msg"><IconImage src={noIcon} alt="Ошибка" size={18} className="tg-error-icon" /> {telegramBotError}</div>}
+                      <div className="tg-section-actions">
+                        <button className="tg-back-btn" onClick={() => setTelegramSetupType(null)}>← Назад</button>
+                        <button
+                          className="modal-save"
+                          disabled={!telegramBotToken.trim() || telegramBotValidating}
+                          onClick={handleConnectBotToken}
+                        >
+                          {telegramBotValidating ? 'Проверка...' : 'Подключить'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="tg-account-section">
+                  {telegramConnected && telegramStatus.includes('✅') ? (
+                    <div className="tg-success-state">
+                      <div className="tg-success-icon"><IconImage src={acceptIcon} alt="Успех" size={48} /></div>
+                      <p className="tg-success-title">Аккаунт успешно подключён!</p>
+                      <button className="modal-save" onClick={() => setTelegramSetupOpen(false)}>Готово</button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="tg-section-hint">Отсканируйте QR-код в приложении Telegram для авторизации аккаунта.</p>
+                      {telegramConnecting && !telegramQr && (
+                        <div className="tg-progress-wrap">
+                          <div className="tg-progress-bar"><div className="tg-progress-fill"></div></div>
+                          <span className="tg-progress-label">Готовим QR-код...</span>
+                        </div>
+                      )}
+                      {telegramQr && (
+                        <div className="telegram-qr-wrap">
+                          <img src={telegramQr} alt="Telegram QR" />
+                        </div>
+                      )}
+                      {telegramQr && telegramConnecting && (
+                        <div className="tg-progress-wrap">
+                          <div className="tg-progress-bar"><div className="tg-progress-pulse"></div></div>
+                          <span className="tg-progress-label">Ожидание сканирования QR...</span>
+                        </div>
+                      )}
+                      {telegramStatus && !telegramConnecting && (
+                        <div className={`telegram-status${telegramStatus.includes('истекла') ? ' tg-status-error' : ''}`}>
+                          {telegramStatus}
+                        </div>
+                      )}
+                      <div className="tg-section-actions">
+                        <button className="tg-back-btn" onClick={() => { setTelegramSetupType(null); setTelegramSessionId(null); setTelegramQr(null); setTelegramStatus(''); setTelegramConnecting(false); }}>← Назад</button>
+                        {telegramConnecting && telegramSessionId && (
+                          <button className="tg-cancel-btn" onClick={() => { setTelegramSessionId(null); setTelegramConnecting(false); setTelegramStatus(''); }}>Отмена</button>
+                        )}
+                        {telegramStatus.includes('истекла') && (
+                          <button className="btn-add-integration" onClick={handleGenerateTelegramQr}>Показать новый QR-код</button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -642,7 +903,7 @@ function DashboardPage() {
 
       <div className="dashboard-content">
         {message.text && <div className={`dashboard-message ${message.type}`}>{message.text}</div>}
-        {activeTab === 'integrations' && <IntegrationsTab integrations={integrations} employees={employees} updateEmployeeRoles={updateEmployeeRoles} showMessage={showMessage} setIntegrations={setIntegrations} openAddModalFromPricing={openAddModalFromPricing} preselectedTariff={preselectedTariff} setOpenAddModalFromPricing={setOpenAddModalFromPricing} />}
+        {activeTab === 'integrations' && <IntegrationsTab user={user} integrations={integrations} employees={employees} updateEmployeeRoles={updateEmployeeRoles} showMessage={showMessage} setIntegrations={setIntegrations} openAddModalFromPricing={openAddModalFromPricing} preselectedTariff={preselectedTariff} setOpenAddModalFromPricing={setOpenAddModalFromPricing} />}
         {activeTab === 'subscriptions' && <SubscriptionsTab integrations={integrations} />}
         {activeTab === 'employees' && <EmployeesTab employees={employees} setEmployees={setEmployees} showMessage={showMessage} />}
         {activeTab === 'notes' && <NotesTab user={user} showMessage={showMessage} />}

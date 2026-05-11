@@ -1,135 +1,147 @@
 #!/usr/bin/expect -f
 
-set timeout 300
-set password "y52pKd6a6GPU@*"
-set server "root@5.42.112.196"
+# Требуются переменные окружения (не храните их в репозитории):
+#   export DEPLOY_SSH_PASSWORD='...'
+#   export DEPLOY_HOST='root@x.x.x.x'
+# Опционально:
+#   export DEPLOY_REPO_ROOT='/path/to/CRMWidget'   (по умолчанию — каталог этого скрипта)
 
-# Build and create archive
-puts "📦 Building frontend..."
-exec cd /Users/mac/CRMWidget/crm-integration-project/frontend && npm install && npm run build
+set timeout 3600
+
+if {![info exists env(DEPLOY_SSH_PASSWORD)] || $env(DEPLOY_SSH_PASSWORD) eq ""} {
+  puts stderr "Задайте DEPLOY_SSH_PASSWORD в окружении."
+  exit 1
+}
+if {![info exists env(DEPLOY_HOST)] || $env(DEPLOY_HOST) eq ""} {
+  puts stderr "Задайте DEPLOY_HOST, например root@203.0.113.10"
+  exit 1
+}
+
+set password $env(DEPLOY_SSH_PASSWORD)
+set server $env(DEPLOY_HOST)
+
+if {[info exists env(DEPLOY_REPO_ROOT)] && $env(DEPLOY_REPO_ROOT) ne ""} {
+  set repo_root $env(DEPLOY_REPO_ROOT)
+} else {
+  set repo_root [file dirname [file normalize [info script]]]
+}
+
+set deploy_tar [file join $repo_root deploy.tar.gz]
+
+set deploy_mode "full"
+if {$argc >= 1 && [lindex $argv 0] eq "quick"} {
+  set deploy_mode "quick"
+}
+
+proc wait_shell {} {
+  expect -re {\r?\n[^\r\n]*[#\$]\s*$}
+}
+
+set fe_dir [file join $repo_root crm-integration-project frontend]
+if {[file isdirectory $fe_dir]} {
+  puts "📦 Building frontend..."
+  exec sh -c "cd [file nativename $fe_dir] && npm install && npm run build" 2>@1
+} else {
+  puts "⏭️  Нет crm-integration-project/frontend — сборка фронта пропущена"
+}
 
 puts "📁 Creating archive..."
-exec cd /Users/mac/CRMWidget && tar -czf deploy.tar.gz \
+exec sh -c "cd [file nativename $repo_root] && tar -czf [file nativename $deploy_tar] \
   --exclude='node_modules' \
   --exclude='.git' \
   --exclude='.DS_Store' \
   --exclude='deploy.tar.gz' \
-  .
+  ." 2>@1
 
 puts "📤 Uploading to server..."
-spawn scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 22 deploy.tar.gz root@5.42.112.196:/tmp/
+spawn scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 22 \
+  [file nativename $deploy_tar] ${server}:/tmp/
 expect "password:"
 send "$password\r"
 expect eof
 
 puts "🔧 Running remote setup..."
-spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 22 root@5.42.112.196
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 22 $server
 expect "password:"
 send "$password\r"
 
-expect "#"
+wait_shell
 send "mkdir -p /opt/crm-integration\r"
 
-expect "#"
+wait_shell
 send "tar -xzf /tmp/deploy.tar.gz -C /opt/crm-integration\r"
 
-expect "#"
+wait_shell
 send "rm /tmp/deploy.tar.gz\r"
 
-expect "#"
+wait_shell
+
+if {$deploy_mode eq "quick"} {
+  send "cd /opt/crm-integration && npm install --production\r"
+  wait_shell
+  send "mkdir -p /opt/crm-integration/logs\r"
+  wait_shell
+  send "cd /opt/crm-integration && pm2 delete crm-integration 2>/dev/null; pm2 start ecosystem.config.js --env production\r"
+  wait_shell
+  send "pm2 save\r"
+  wait_shell
+  send "nginx -t && systemctl reload nginx\r"
+  wait_shell
+  send "echo '✅ Quick deploy completed'\r"
+  wait_shell
+  send "exit\r"
+  expect eof
+  puts "✅ Quick deployment finished!"
+  exec rm -f [file nativename $deploy_tar]
+  exit 0
+}
+
 send "cd /opt/crm-integration && npm install --production\r"
 
-expect "#"
+wait_shell
 send "npm install -g pm2\r"
 
-expect "#"
+wait_shell
 send "apt-get update\r"
 
-expect "#"
+wait_shell
 send "apt-get install -y postgresql postgresql-contrib nginx certbot python3-certbot-nginx ufw\r"
 
-expect "#"
+wait_shell
 send "systemctl start postgresql && systemctl enable postgresql\r"
 
-expect "#"
+wait_shell
 send "sudo -u postgres psql -c \"CREATE DATABASE crm_integration;\" 2>/dev/null || true\r"
 
-expect "#"
-send "sudo -u postgres psql -c \"CREATE USER crm_user WITH PASSWORD 'crm_password_2024';\" 2>/dev/null || true\r"
+wait_shell
+send "sudo -u postgres psql -c \"CREATE USER crm_user WITH PASSWORD 'change_me_strong';\" 2>/dev/null || true\r"
 
-expect "#"
+wait_shell
 send "sudo -u postgres psql -c \"GRANT ALL PRIVILEGES ON DATABASE crm_integration TO crm_user;\"\r"
 
-expect "#"
+wait_shell
 send "sudo -u postgres psql -d crm_integration -f /opt/crm-integration/crm-integration-project/backend/main/init-postgres.sql 2>/dev/null || true\r"
 
-expect "#"
-send "cat > /opt/crm-integration/.env << 'EOF'
-NODE_ENV=production
-PORT=3000
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=crm_integration
-DB_USER=crm_user
-DB_PASSWORD=crm_password_2024
-DB_SSL=false
-JWT_SECRET=271810b6be6d0bd383136da01238ff921c57c3fe9d5baed717777168d9783218b4d01fbd1a83dbb6839d4eac222aeb4d2389b6cd899bb07661d715a8b3bdd8cd
-CLIENT_ID=7c0980eb-1e92-4101-a202-b5edb4566fb6
-CLIENT_SECRET=Kht02uoh5ZVhDqNykwOK8H0nnNKfSi7rbO9GlTHiBgVtKZ5kDQYQmEv0hLGnECZq
-REDIRECT_URI=https://corsa-crm.ru/api/auth/callback
-TELEGRAM_TOKEN=8611591835:AAH8NzSlORDeQ3tE44kshaZV5pt4x2j0wow
-EOF\r"
+wait_shell
+send "echo '[deploy] Настройте /opt/crm-integration/.env на сервере вручную (секреты не записываются скриптом).'\r"
 
-expect "#"
+wait_shell
 send "cd /opt/crm-integration && pm2 delete crm-integration 2>/dev/null; pm2 start ecosystem.config.js --env production\r"
 
-expect "#"
+wait_shell
 send "pm2 save && pm2 startup systemd -u root --hp /root\r"
 
-expect "#"
-send "cat > /etc/nginx/sites-available/corsa-crm.ru << 'EOF'
-server {
-    listen 80;
-    server_name corsa-crm.ru www.corsa-crm.ru;
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-    }
-}
-EOF\r"
-
-expect "#"
-send "ln -sf /etc/nginx/sites-available/corsa-crm.ru /etc/nginx/sites-enabled/\r"
-
-expect "#"
-send "rm -f /etc/nginx/sites-enabled/default\r"
-
-expect "#"
+wait_shell
 send "nginx -t && systemctl reload nginx\r"
 
-expect "#"
-send "certbot --nginx -d corsa-crm.ru -d www.corsa-crm.ru --non-interactive --agree-tos --email admin@corsa-crm.ru 2>/dev/null || true\r"
+wait_shell
+send "echo '✅ Deployment completed (проверьте .env на сервере)!'\r"
 
-expect "#"
-send "ufw allow OpenSSH && ufw allow 'Nginx Full' && ufw --force enable\r"
-
-expect "#"
-send "echo '✅ Deployment completed!'\r"
-
-expect "#"
+wait_shell
 send "exit\r"
 
 expect eof
 
 puts "✅ Deployment finished!"
-puts "🌐 Website: https://corsa-crm.ru"
 
-# Cleanup
-exec rm -f /Users/mac/CRMWidget/deploy.tar.gz
+exec rm -f [file nativename $deploy_tar]

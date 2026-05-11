@@ -1,0 +1,33 @@
+#!/usr/bin/expect -f
+# Быстрый перезапуск приложения на VPS после выгрузки файлов.
+# Пароль не хранится в файле: передайте через окружение один раз в своём терминале:
+#   export DEPLOY_SSH_PASSWORD='...'
+#   expect scripts/deploy_restart_pm2.expect
+
+set timeout 120
+
+if {![info exists env(DEPLOY_SSH_PASSWORD)] || $env(DEPLOY_SSH_PASSWORD) eq ""} {
+  puts stderr "Задайте пароль: export DEPLOY_SSH_PASSWORD='...'"
+  exit 1
+}
+
+set password $env(DEPLOY_SSH_PASSWORD)
+
+proc wait_shell {} {
+  expect -re {\r?\n[^\r\n]*[#\$]\s*$}
+}
+
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 22 root@5.42.112.196
+expect "password:"
+send "$password\r"
+wait_shell
+
+send "cd /opt/crm-integration/crm-integration-project/backend/main && npm install --omit=dev\r"
+wait_shell
+
+send "cd /opt/crm-integration && pm2 restart crm-integration\r"
+wait_shell
+
+send "exit\r"
+expect eof
+puts "✅ pm2 restart выполнен"

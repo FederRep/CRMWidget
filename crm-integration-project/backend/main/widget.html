@@ -49,6 +49,8 @@
   const urlParams = new URLSearchParams(window.location.search);
   const leadId = urlParams.get('ENTITY_ID');
   const entityType = urlParams.get('ENTITY_TYPE');
+  const host = (document.referrer ? new URL(document.referrer).hostname : '');
+  const subdomain = host.endsWith('.amocrm.ru') ? host.replace('.amocrm.ru', '') : null;
 
   const statusDiv = document.getElementById('status');
   const connectBtn = document.getElementById('connectBtn');
@@ -59,7 +61,7 @@
       const response = await fetch('https://corsa-crm.ru/check-connection', { // ✅ Обновлён URL
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId, entityType })
+        body: JSON.stringify({ leadId, entityType, subdomain })
       });
 
       const data = await response.json();
@@ -83,7 +85,7 @@
     const left = (screen.width / 2) - (width / 2);
     const top = (screen.height / 2) - (height / 2);
 
-    const url = `https://corsa-crm.ru/connect-telegram?leadId=${leadId || ''}&entityType=${entityType || ''}`; // ✅ Обновлён URL
+    const url = `https://corsa-crm.ru/connect-telegram?leadId=${leadId || ''}&entityType=${entityType || ''}&subdomain=${subdomain || ''}`; // ✅ Обновлён URL
     window.open(url, 'Connect Telegram', `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
   });
 

@@ -38,10 +38,34 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS conversations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       telegram_chat_id TEXT UNIQUE NOT NULL,
+      telegram_user_id TEXT,
+      business_connection_id TEXT,
       amo_contact_id INTEGER,
       amo_lead_id INTEGER,
+      amo_subdomain TEXT,
       channel TEXT DEFAULT 'telegram',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Миграция для старых БД без amo_subdomain
+  db.run(`ALTER TABLE conversations ADD COLUMN amo_subdomain TEXT`, () => {
+    // Игнорируем ошибку duplicate column для уже обновленной схемы
+  });
+  db.run(`ALTER TABLE conversations ADD COLUMN telegram_user_id TEXT`, () => {});
+  db.run(`ALTER TABLE conversations ADD COLUMN business_connection_id TEXT`, () => {});
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS telegram_business_connections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      business_connection_id TEXT UNIQUE NOT NULL,
+      amo_subdomain TEXT,
+      user_chat_id TEXT,
+      user_username TEXT,
+      user_first_name TEXT,
+      is_enabled INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -79,6 +103,17 @@ db.serialize(() => {
       first_name TEXT,
       last_name TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // MTProto (Telegram «связанные устройства») — StringSession по поддомену amo
+  db.run(`
+    CREATE TABLE IF NOT EXISTS telegram_mtproto_sessions (
+      amo_subdomain TEXT PRIMARY KEY NOT NULL,
+      session_string TEXT NOT NULL,
+      telegram_user_id TEXT NOT NULL,
+      username TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 

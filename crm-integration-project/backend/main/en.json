@@ -1,0 +1,28 @@
+{
+  "widget": {
+    "name": "Corsa Messenger",
+    "description": "Multichannel integration for amoCRM: Telegram, WhatsApp, VK, Instagram, LinkedIn, Avito.",
+    "short_description": "Chats from social networks in amoCRM",
+    "tour_description": "Connect channels, sync chats, and reply from amoCRM."
+  },
+  "settings": {
+    "login": "Responsible user",
+    "open_dashboard": "Open Corsa dashboard"
+  },
+  "dp": {
+    "message": "Message text"
+  },
+  "advanced": {
+    "title": "Advanced settings"
+  },
+  "salesbot": {
+    "handler_name": "Send Corsa message",
+    "button_title": "Button title",
+    "button_title_default_value": "Open chat",
+    "button_caption": "Button caption",
+    "button_caption_default_value": "Send",
+    "text": "Text",
+    "number": "Number",
+    "url": "URL"
+  }
+}

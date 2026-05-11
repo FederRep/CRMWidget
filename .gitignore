@@ -1,0 +1,24 @@
+# Secrets & local env
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build / deploy artifacts
+deploy.tar.gz
+*.tar.gz
+dist/
+
+# SQLite / local DB
+*.db
+
+# Editor / backup noise
+*.bak
+.DS_Store
+
+# Logs
+logs/
+*.log
+*_output.log

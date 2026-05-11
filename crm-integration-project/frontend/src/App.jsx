@@ -6,6 +6,7 @@ import './App.css'
 import logo from './assets/logo.png'
 import AuthPage from './pages/AuthPage'
 import DashboardPage from './pages/DashboardPage'
+import AmoHubPage from './pages/AmoHubPage'
 import PricingPage from './pages/PricingPage'
 import SupportSection from './components/SupportSection'
 import LiquidEther from '../LiquidEther/LiquidEther'
@@ -176,6 +177,7 @@ function AppRoutes() {
 
   return (
     <Routes>
+      <Route path="/widget-page" element={<AmoHubPage />} />
       <Route path="/" element={<Home />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/pricing" element={<Layout><PricingPage /></Layout>} />

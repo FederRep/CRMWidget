@@ -2,10 +2,12 @@
 require('dotenv').config();
 
 const express = require('express');
+const path = require('path');
 const axios = require('axios');
 const EventEmitter = require('events');
 const winston = require('winston');
 const db = require('./database');
+const telegramDeviceAuth = require('./telegramDeviceAuth');
 const cors = require('cors');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
@@ -14,6 +16,9 @@ const jwt = require('jsonwebtoken');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+global.telegramQrSessionSubdomains = global.telegramQrSessionSubdomains || new Map();
 
 /* ============================================================
    📡 PLATFORM ROUTES
@@ -31,7 +36,6 @@ app.use('/api/linkedin', linkedinRoutes);
 ============================================================ */
 // В production раздаём собранный frontend
 if (process.env.NODE_ENV === 'production') {
-  const path = require('path');
   app.use(express.static(path.join(__dirname, '../../frontend/dist')));
 }
 
@@ -48,6 +52,8 @@ const logger = winston.createLogger({
   ),
   transports: [new winston.transports.Console()]
 });
+
+telegramDeviceAuth.setLogger(logger);
 
 /* ============================================================
    BASE ROUTE
@@ -446,27 +452,145 @@ app.post('/api/linkedin/logout', (req, res) => {
    🦀 AMOCRM OAUTH
 ============================================================ */
 
+function parseSubdomainFromReferer(referer) {
+  if (!referer) return null;
+
+  try {
+    const normalized = referer.startsWith('http') ? referer : `https://${referer}`;
+    const parsed = new URL(normalized);
+    const host = parsed.hostname || '';
+
+    if (!host.endsWith('.amocrm.ru')) return null;
+
+    return host.replace('.amocrm.ru', '');
+  } catch (err) {
+    return null;
+  }
+}
+
+function storeOAuthState(state, subdomain) {
+  global.oauthStates = global.oauthStates || {};
+  global.oauthStates[state] = { subdomain, ts: Date.now() };
+}
+
+function resolveSubdomainByStateOrReferer(state, referer) {
+  let subdomain = null;
+
+  if (state && global.oauthStates && global.oauthStates[state]) {
+    subdomain = global.oauthStates[state].subdomain;
+    delete global.oauthStates[state];
+    return subdomain;
+  }
+
+  if (state) {
+    try {
+      const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
+      if (stateData?.subdomain) return stateData.subdomain;
+    } catch (e) {
+      // fallback on referer below
+    }
+  }
+
+  return parseSubdomainFromReferer(referer);
+}
+
+async function exchangeAmoCodeForTokens(subdomain, code) {
+  const tokenUrl = `https://${subdomain}.amocrm.ru/oauth2/access_token`;
+
+  const response = await axios.post(tokenUrl, {
+    client_id: process.env.CLIENT_ID,
+    client_secret: process.env.CLIENT_SECRET,
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: process.env.REDIRECT_URI
+  });
+
+  const { access_token, refresh_token, expires_in } = response.data;
+  const expiresAt = Math.floor(Date.now() / 1000) + expires_in;
+
+  await new Promise((resolve, reject) => {
+    db.run(
+      `INSERT OR REPLACE INTO users 
+      (amo_subdomain, access_token, refresh_token, expires_at) 
+      VALUES (?, ?, ?, ?)`,
+      [subdomain, access_token, refresh_token, expiresAt],
+      err => (err ? reject(err) : resolve())
+    );
+  });
+
+  return { access_token, refresh_token, expires_in, expires_at: expiresAt };
+}
+
+async function handleAmoOAuthCallback(req, res) {
+  const { code, state, referer } = req.query;
+
+  if (!code) return res.status(400).send('No code');
+
+  const subdomain = resolveSubdomainByStateOrReferer(state, referer);
+  if (!subdomain) {
+    logger.error('Failed to resolve subdomain in OAuth callback', { state, referer });
+    return res.status(400).send('No subdomain resolved');
+  }
+
+  try {
+    await exchangeAmoCodeForTokens(subdomain, code);
+    logger.info(`OAuth success for ${subdomain}`);
+
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="UTF-8"><title>Authorization Success</title></head>
+      <body style="font-family:system-ui,sans-serif;text-align:center;padding:40px;">
+        <h2>Authorization successful ✅</h2>
+        <p>Tokens stored. You can close this window.</p>
+        <script>
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({ type: 'AMO_OAUTH_SUCCESS' }, '*');
+          }
+          setTimeout(() => window.close(), 1200);
+        </script>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    logger.error('OAuth exchange failed', {
+      error: err.response?.data || err.message,
+      subdomain
+    });
+    res.status(500).send('OAuth failed');
+  }
+}
+
 // Старт авторизации (редирект на amoCRM)
 // OAuth для виджета (mode=post_message - современный способ)
 app.get('/oauth', (req, res) => {
-  const subdomain = req.query.subdomain || process.env.AMOCRM_SUBDOMAIN;
+  const subdomain =
+    req.query.subdomain ||
+    parseSubdomainFromReferer(req.query.referer) ||
+    process.env.AMOCRM_SUBDOMAIN;
+
   if (!subdomain) return res.status(400).send('No subdomain provided');
 
-  // Генерируем простой state (как у конкурента)
+  // Генерируем state и запоминаем связь state -> subdomain
   const state = Math.random().toString(36).substring(2, 15);
-  
-  // Сохраняем state в памяти (или можно в БД)
-  global.oauthStates = global.oauthStates || {};
-  global.oauthStates[state] = { subdomain, ts: Date.now() };
+  storeOAuthState(state, subdomain);
+
+  // Для совместимости поддерживаем оба режима
+  const mode = req.query.mode || 'post_message';
 
   const url = `https://${subdomain}.amocrm.ru/oauth` +
     `?client_id=${process.env.CLIENT_ID}` +
     `&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}` +
     `&response_type=code` +
-    `&mode=post_message` +
+    `&mode=${mode}` +
     `&state=${state}`;
 
   logger.info('Redirecting to amoCRM OAuth', { redirect_uri: process.env.REDIRECT_URI, subdomain });
+
+  if (req.query.return_url === '1') {
+    return res.json({ ok: true, oauth_url: url, subdomain, state, mode });
+  }
+
   res.redirect(url);
 });
 
@@ -476,121 +600,40 @@ app.get('/oauth', (req, res) => {
 
 // Callback для OAuth (для совместимости с виджетом)
 app.get('/api/auth/callback', async (req, res) => {
-  const { code, state } = req.query;
-
-  if (!code) return res.status(400).send('No code');
-  if (!state) return res.status(400).send('No state');
-
-  // Получаем subdomain из сохраненного state
-  let subdomain;
-  if (global.oauthStates && global.oauthStates[state]) {
-    subdomain = global.oauthStates[state].subdomain;
-    delete global.oauthStates[state]; // Очищаем использованный state
-  } else {
-    // Fallback для старого формата (base64)
-    try {
-      const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
-      subdomain = stateData.subdomain;
-    } catch (e) {
-      logger.error('Invalid state parameter', { error: e.message });
-      return res.status(400).send('Invalid state');
-    }
-  }
-
-  try {
-    const tokenUrl = `https://${subdomain}.amocrm.ru/oauth2/access_token`;
-
-    const response = await axios.post(tokenUrl, {
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: process.env.REDIRECT_URI
-    });
-
-    const { access_token, refresh_token, expires_in } = response.data;
-    const expiresAt = Math.floor(Date.now() / 1000) + expires_in;
-
-    await new Promise((resolve, reject) => {
-      db.run(
-        `INSERT OR REPLACE INTO users 
-        (amo_subdomain, access_token, refresh_token, expires_at) 
-        VALUES (?, ?, ?, ?)`,
-        [subdomain, access_token, refresh_token, expiresAt],
-        err => (err ? reject(err) : resolve())
-      );
-    });
-
-    logger.info(`OAuth success for ${subdomain}`);
-
-    // ✅ Успешная авторизация — закрываем окно и уведомляем пользователя
-    res.send(`
-      <h2>Authorization successful ✅</h2>
-      <p>You can close this window.</p>
-      <script>
-        setTimeout(()=>window.close(),1500)
-      </script>
-    `);
-
-  } catch (err) {
-    logger.error(err.response?.data || err.message);
-    res.status(500).send('OAuth failed');
-  }
+  return handleAmoOAuthCallback(req, res);
 });
 
 // Старый callback (для обратной совместимости)
 app.get('/callback', async (req, res) => {
-  const { code, state } = req.query;
+  return handleAmoOAuthCallback(req, res);
+});
 
-  if (!code) return res.status(400).send('No code');
-  if (!state) return res.status(400).send('No state');
+// Ручной обмен code -> tokens (когда код получен отдельно)
+app.post('/api/auth/exchange-code', async (req, res) => {
+  const { code, subdomain, referer } = req.body;
 
-  let subdomain;
-  try {
-    const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
-    subdomain = stateData.subdomain;
-  } catch (e) {
-    logger.error('Invalid state parameter', { error: e.message });
-    return res.status(400).send('Invalid state');
+  if (!code) {
+    return res.status(400).json({ error: 'code required' });
+  }
+
+  const resolvedSubdomain = subdomain || parseSubdomainFromReferer(referer);
+  if (!resolvedSubdomain) {
+    return res.status(400).json({ error: 'subdomain or referer required' });
   }
 
   try {
-    const tokenUrl = `https://${subdomain}.amocrm.ru/oauth2/access_token`;
-
-    const response = await axios.post(tokenUrl, {
-      client_id: process.env.CLIENT_ID,
-      client_secret: process.env.CLIENT_SECRET,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: process.env.REDIRECT_URI
+    const tokens = await exchangeAmoCodeForTokens(resolvedSubdomain, code);
+    res.json({
+      success: true,
+      subdomain: resolvedSubdomain,
+      expiresAt: tokens.expires_at
     });
-
-    const { access_token, refresh_token, expires_in } = response.data;
-    const expiresAt = Math.floor(Date.now() / 1000) + expires_in;
-
-    await new Promise((resolve, reject) => {
-      db.run(
-        `INSERT OR REPLACE INTO users 
-        (amo_subdomain, access_token, refresh_token, expires_at) 
-        VALUES (?, ?, ?, ?)`,
-        [subdomain, access_token, refresh_token, expiresAt],
-        err => (err ? reject(err) : resolve())
-      );
+  } catch (error) {
+    logger.error('Manual code exchange failed', {
+      error: error.response?.data || error.message,
+      subdomain: resolvedSubdomain
     });
-
-    logger.info(`OAuth success for ${subdomain}`);
-
-    // ✅ Успешная авторизация — закрываем окно и уведомляем пользователя
-    res.send(`
-      <h2>Authorization successful ✅</h2>
-      <script>
-        setTimeout(()=>window.close(),1500)
-      </script>
-    `);
-
-  } catch (err) {
-    logger.error(err.response?.data || err.message);
-    res.status(500).send('OAuth failed');
+    res.status(500).json({ error: 'OAuth exchange failed' });
   }
 });
 
@@ -695,11 +738,16 @@ async function getValidAccessToken(subdomain) {
    ✈️ TELEGRAM QR AUTH (Wazzup-style)
 ============================================================ */
 
-// 1. Создание сессии и генерация QR-кода
-app.get('/api/auth/telegram/qr', (req, res) => {
+// 1. Создание сессии и генерация QR-кода (GET и POST; subdomain привязывает чаты к аккаунту amo)
+function createTelegramAccountQrSession(req, res) {
   const sessionId = crypto.randomBytes(16).toString('hex');
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-  
+  const rawSubdomain =
+    (req.query && req.query.subdomain) ||
+    (req.body && typeof req.body === 'object' && req.body.subdomain) ||
+    '';
+  const normalizedSubdomain = normalizeAmoSubdomain(rawSubdomain);
+
   db.run(
     `INSERT INTO auth_sessions (session_id, platform, status, expires_at) 
      VALUES (?, 'telegram', 'pending', ?)`,
@@ -709,12 +757,66 @@ app.get('/api/auth/telegram/qr', (req, res) => {
         logger.error('Failed to create session', err);
         return res.status(500).json({ error: 'Failed to create session' });
       }
-      
-      const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'your_bot_name';
-      const deepLink = `https://t.me/${botUsername}?start=auth_${sessionId}`;
-      
-      logger.info('Telegram QR session created', { sessionId });
-      
+
+      if (normalizedSubdomain) {
+        global.telegramQrSessionSubdomains.set(sessionId, normalizedSubdomain);
+        setTimeout(() => global.telegramQrSessionSubdomains.delete(sessionId), 6 * 60 * 1000);
+      }
+
+      const botUsername = String(process.env.TELEGRAM_BOT_USERNAME || '')
+        .replace(/^@/, '')
+        .trim();
+      if (!botUsername) {
+        logger.warn('TELEGRAM_BOT_USERNAME is empty — set it in .env to the bot name from @BotFather');
+      }
+      const deepLink = `https://t.me/${botUsername || 'your_bot_name'}?start=auth_${sessionId}`;
+
+      logger.info('Telegram QR session created', { sessionId, subdomain: normalizedSubdomain });
+
+      res.json({
+        sessionId,
+        qrData: deepLink,
+        qrImage: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(deepLink)}`,
+        expiresAt: expiresAt.toISOString()
+      });
+    }
+  );
+}
+
+app.get('/api/auth/telegram/qr', createTelegramAccountQrSession);
+app.post('/api/auth/telegram/qr', createTelegramAccountQrSession);
+
+// 1.1 Telegram Business QR-сессия (для подключения из ЛК Corsa)
+app.get('/api/auth/telegram/business/qr', (req, res) => {
+  const sessionId = crypto.randomBytes(16).toString('hex');
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+  const subdomain = normalizeAmoSubdomain(req.query.subdomain) || null;
+
+  db.run(
+    `INSERT INTO auth_sessions (session_id, platform, status, expires_at) 
+     VALUES (?, 'telegram_business', 'pending', ?)`,
+    [sessionId, expiresAt],
+    (err) => {
+      if (err) {
+        logger.error('Failed to create Telegram Business session', err);
+        return res.status(500).json({ error: 'Failed to create session' });
+      }
+
+      const botUsername = String(process.env.TELEGRAM_BOT_USERNAME || '')
+        .replace(/^@/, '')
+        .trim() || 'your_bot_name';
+      const deepLink = `https://t.me/${botUsername}?start=biz_${sessionId}`;
+
+      // Если subdomain передан, заранее связываем с бизнес-подключением
+      if (subdomain) {
+        db.run(
+          `INSERT OR REPLACE INTO telegram_business_connections
+           (business_connection_id, amo_subdomain, is_enabled, updated_at)
+           VALUES (?, ?, 1, CURRENT_TIMESTAMP)`,
+          [`pending_${sessionId}`, subdomain]
+        );
+      }
+
       res.json({
         sessionId,
         qrData: deepLink,
@@ -755,6 +857,94 @@ app.get('/api/auth/telegram/qr/:sessionId', (req, res) => {
   );
 });
 
+// 2.1 Страница подключения Telegram (для widget iframe popup)
+app.get('/connect-telegram', (req, res) => {
+  const leadId = req.query.leadId || '';
+  const entityType = req.query.entityType || 'LEAD';
+  const subdomain = normalizeAmoSubdomain(req.query.subdomain);
+
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Connect Telegram</title>
+      <style>
+        body { font-family: system-ui, sans-serif; padding: 24px; text-align: center; }
+        .box { max-width: 420px; margin: 0 auto; }
+        .muted { color: #666; font-size: 14px; }
+        img { border: 1px solid #eee; border-radius: 8px; margin: 12px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="box">
+        <h2>Подключение Telegram</h2>
+        <p class="muted">Сканируйте QR в Telegram и нажмите Start у бота.</p>
+        <img id="qr" width="250" height="250" alt="Telegram QR" />
+        <p id="status" class="muted">Создание сессии...</p>
+      </div>
+      <script>
+        const leadId = ${JSON.stringify(leadId)};
+        const entityType = ${JSON.stringify(entityType)};
+        const subdomain = ${JSON.stringify(subdomain)};
+        const statusEl = document.getElementById('status');
+        const qrEl = document.getElementById('qr');
+
+        async function run() {
+          const init = await fetch('/api/auth/telegram/qr');
+          const initData = await init.json();
+          qrEl.src = initData.qrImage;
+
+          const poll = setInterval(async () => {
+            const stateRes = await fetch('/api/auth/telegram/qr/' + initData.sessionId);
+            const state = await stateRes.json();
+
+            if (state.status === 'authorized' && state.telegramId) {
+              statusEl.textContent = 'Telegram подключён, привязываю к карточке...';
+              clearInterval(poll);
+
+              const linkRes = await fetch('/link-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chatId: state.telegramId,
+                  leadId,
+                  entityType,
+                  subdomain
+                })
+              });
+              const link = await linkRes.json();
+
+              if (link.success) {
+                statusEl.textContent = 'Готово! Чат привязан ✅';
+                if (window.opener && !window.opener.closed) {
+                  window.opener.postMessage({ type: 'TELEGRAM_SUCCESS' }, '*');
+                }
+                setTimeout(() => window.close(), 1200);
+              } else {
+                statusEl.textContent = 'Ошибка привязки: ' + (link.error || 'unknown');
+              }
+            } else if (state.status === 'expired') {
+              clearInterval(poll);
+              statusEl.textContent = 'Сессия истекла. Закройте окно и попробуйте снова.';
+            } else if (state.status === 'pending') {
+              statusEl.textContent = 'Ожидание подтверждения в Telegram...';
+            } else if (state.error) {
+              statusEl.textContent = state.error;
+            }
+          }, 2500);
+        }
+
+        run().catch((err) => {
+          statusEl.textContent = 'Ошибка инициализации';
+          console.error(err);
+        });
+      </script>
+    </body>
+    </html>
+  `);
+});
+
 // 3. Получение данных подключенного пользователя
 app.get('/api/auth/telegram/me', (req, res) => {
   const { telegramId } = req.query;
@@ -781,6 +971,310 @@ app.get('/api/auth/telegram/me', (req, res) => {
       });
     }
   );
+});
+
+// 3.1 Webhook Telegram: принимает /start auth_<sessionId> и завершает QR-сессию
+app.post('/api/telegram/webhook', (req, res) => {
+  const update = req.body || {};
+  const message = update.business_message || update.message;
+  const businessConnection = update.business_connection || null;
+
+  if (businessConnection?.id) {
+    const hintedSubdomain =
+      normalizeAmoSubdomain(req.body?.subdomain) ||
+      normalizeAmoSubdomain(req.query?.subdomain) ||
+      null;
+
+    db.run(
+      `INSERT OR REPLACE INTO telegram_business_connections
+      (business_connection_id, amo_subdomain, user_chat_id, user_username, user_first_name, is_enabled, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [
+        businessConnection.id,
+        hintedSubdomain,
+        businessConnection.user?.id ? String(businessConnection.user.id) : null,
+        businessConnection.user?.username || null,
+        businessConnection.user?.first_name || null,
+        businessConnection.is_enabled ? 1 : 0
+      ]
+    );
+  }
+
+  if (!message) return res.sendStatus(200);
+
+  const chatId = String(message.chat?.id || message.from?.id || '');
+  if (!chatId) return res.sendStatus(200);
+
+  const text = (message.text || message.caption || '').trim();
+  const username = message.from?.username || null;
+  const firstName = message.from?.first_name || null;
+  const telegramUserId = String(message.from?.id || message.chat?.id || '');
+  const businessConnectionId = message.business_connection_id || businessConnection?.id || null;
+  const channel = businessConnectionId ? 'telegram_business' : 'telegram';
+
+  const isBotQrStart = text.startsWith('/start auth_');
+  const isBusinessQrStart = text.startsWith('/start biz_');
+
+  if (isBotQrStart || isBusinessQrStart) {
+    const sessionId = isBotQrStart
+      ? text.replace('/start auth_', '').trim()
+      : text.replace('/start biz_', '').trim();
+
+    db.get(
+      `SELECT session_id, status, expires_at FROM auth_sessions WHERE session_id = ?`,
+      [sessionId],
+      (err, session) => {
+        if (err || !session) return res.sendStatus(200);
+
+        const isExpired = new Date(session.expires_at) < new Date();
+        if (isExpired || session.status !== 'pending') return res.sendStatus(200);
+
+        const sessionPlatform = isBusinessQrStart ? 'telegram_business' : 'telegram';
+
+        db.run(
+          `UPDATE auth_sessions 
+           SET status = 'authorized', telegram_id = ?, telegram_username = ?, telegram_first_name = ?, error = NULL
+           WHERE session_id = ?`,
+          [chatId, username, firstName, sessionId],
+          (uErr) => {
+            if (uErr) logger.error('auth_sessions update failed', uErr);
+
+            db.run(
+              `INSERT OR IGNORE INTO conversations (telegram_chat_id, telegram_user_id, business_connection_id, channel)
+               VALUES (?, ?, ?, ?)`,
+              [chatId, telegramUserId, businessConnectionId, businessConnectionId ? 'telegram_business' : sessionPlatform],
+              (iErr) => {
+                if (iErr) logger.error('conversation insert failed', iErr);
+
+                const mappedSub = global.telegramQrSessionSubdomains?.get(sessionId);
+                const ns = normalizeAmoSubdomain(mappedSub);
+                if (ns) {
+                  db.run(
+                    `UPDATE conversations SET amo_subdomain = ? WHERE telegram_chat_id = ?`,
+                    [ns, chatId],
+                    () => {
+                      global.telegramQrSessionSubdomains.delete(sessionId);
+                      logger.info('Telegram QR session authorized', { sessionId, chatId, amo_subdomain: ns });
+                    }
+                  );
+                } else {
+                  if (mappedSub !== undefined) global.telegramQrSessionSubdomains.delete(sessionId);
+                  logger.info('Telegram QR session authorized', { sessionId, chatId, businessConnectionId });
+                }
+              }
+            );
+          }
+        );
+      }
+    );
+  }
+
+  if (!text || isBotQrStart || isBusinessQrStart) return res.sendStatus(200);
+
+  db.get(
+    `SELECT * FROM conversations
+     WHERE (business_connection_id = ? AND telegram_user_id = ?)
+        OR telegram_chat_id = ?
+     LIMIT 1`,
+    [businessConnectionId, telegramUserId, chatId],
+    async (err, conversation) => {
+      if (err) return;
+
+      // Для Telegram Business создаем "ожидающий" диалог даже до ручной привязки карточки
+      if (!conversation && businessConnectionId) {
+        db.run(
+          `INSERT OR IGNORE INTO conversations (telegram_chat_id, telegram_user_id, business_connection_id, channel)
+           VALUES (?, ?, ?, 'telegram_business')`,
+          [chatId, telegramUserId, businessConnectionId]
+        );
+      }
+
+      if (!conversation) return;
+
+      try {
+        await addMessageToAmoConversation({
+          conversation,
+          text,
+          direction: 'from_telegram'
+        });
+        logger.info('Telegram message delivered to amoCRM', {
+          chatId,
+          businessConnectionId,
+          leadId: conversation.amo_lead_id || null,
+          contactId: conversation.amo_contact_id || null
+        });
+      } catch (e) {
+        logger.error('Failed to deliver Telegram message to amoCRM', {
+          chatId,
+          businessConnectionId,
+          error: e.response?.data || e.message
+        });
+      }
+    }
+  );
+
+  res.sendStatus(200);
+});
+
+app.post('/api/telegram/setup-webhook', async (req, res) => {
+  const webhookUrl = req.body?.webhookUrl || 'https://corsa-crm.ru/api/telegram/webhook';
+
+  try {
+    const response = await axios.post(
+      `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/setWebhook`,
+      { url: webhookUrl },
+      { timeout: 10000 }
+    );
+    res.json({ success: true, webhookUrl, telegram: response.data });
+  } catch (error) {
+    logger.error('Failed to set Telegram webhook', { error: error.response?.data || error.message });
+    res.status(500).json({ success: false, error: 'Failed to set Telegram webhook' });
+  }
+});
+
+app.get('/api/telegram/business/status', (req, res) => {
+  const subdomain = normalizeAmoSubdomain(req.query.subdomain);
+
+  const query = subdomain
+    ? `SELECT business_connection_id, amo_subdomain, is_enabled, updated_at
+       FROM telegram_business_connections
+       WHERE amo_subdomain = ?
+       ORDER BY updated_at DESC LIMIT 1`
+    : `SELECT business_connection_id, amo_subdomain, is_enabled, updated_at
+       FROM telegram_business_connections
+       ORDER BY updated_at DESC LIMIT 1`;
+
+  const params = subdomain ? [subdomain] : [];
+
+  db.get(query, params, (err, row) => {
+    if (err || !row) {
+      return res.json({ connected: false, subdomain: subdomain || null });
+    }
+
+    const hasRealBusinessConnection =
+      Boolean(row.business_connection_id) &&
+      !String(row.business_connection_id).startsWith('pending_') &&
+      Boolean(row.is_enabled);
+
+    res.json({
+      connected: hasRealBusinessConnection,
+      businessConnectionId: row.business_connection_id,
+      subdomain: row.amo_subdomain,
+      updatedAt: row.updated_at
+    });
+  });
+});
+
+// Последние диалоги Telegram, привязанные к поддомену amo (бот не отдаёт список личных чатов — только связки из Corsa)
+app.get('/api/telegram/conversations', (req, res) => {
+  const subdomain = normalizeAmoSubdomain(req.query.subdomain);
+  const rawLimit = parseInt(String(req.query.limit || '5'), 10);
+  const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 25) : 5;
+
+  if (!subdomain) {
+    return res.status(400).json({ error: 'subdomain query parameter required' });
+  }
+
+  db.all(
+    `SELECT id, telegram_chat_id, telegram_user_id, amo_lead_id, amo_contact_id, channel, created_at, amo_subdomain
+     FROM conversations
+     WHERE amo_subdomain = ?
+       AND channel IN ('telegram', 'telegram_business', 'telegram_mtproto')
+     ORDER BY id DESC
+     LIMIT ?`,
+    [subdomain, limit],
+    async (err, rows) => {
+      if (err) {
+        logger.error('conversations list failed', err);
+        return res.status(500).json({ error: 'DB error' });
+      }
+
+      const token = process.env.TELEGRAM_TOKEN;
+      const list = [];
+      for (const row of rows || []) {
+        let title =
+          row.channel === 'telegram_mtproto'
+            ? `Диалог ${row.telegram_chat_id}`
+            : row.telegram_user_id && row.telegram_user_id !== row.telegram_chat_id
+              ? `user:${row.telegram_user_id}`
+              : `chat:${row.telegram_chat_id}`;
+        if (token && row.telegram_chat_id && row.channel !== 'telegram_mtproto') {
+          try {
+            const chatRes = await axios.get(`https://api.telegram.org/bot${token}/getChat`, {
+              params: { chat_id: row.telegram_chat_id },
+              timeout: 5000
+            });
+            const c = chatRes.data?.result;
+            if (chatRes.data?.ok && c) {
+              title =
+                c.title ||
+                [c.first_name, c.last_name].filter(Boolean).join(' ') ||
+                (c.username ? `@${c.username}` : null) ||
+                title;
+            }
+          } catch (e) {
+            /* имя недоступно — оставляем запасной заголовок */
+          }
+        }
+        list.push({
+          id: row.id,
+          telegramChatId: row.telegram_chat_id,
+          amoLeadId: row.amo_lead_id,
+          amoContactId: row.amo_contact_id,
+          channel: row.channel,
+          title,
+          createdAt: row.created_at
+        });
+      }
+
+      res.json({ conversations: list });
+    }
+  );
+});
+
+// Telegram «Связанные устройства» (MTProto QR tg://login)
+app.post('/api/auth/telegram/device/start', (req, res) => {
+  try {
+    const raw =
+      (req.body && req.body.subdomain) ||
+      req.query.subdomain ||
+      '';
+    const subdomain = normalizeAmoSubdomain(raw);
+    if (!subdomain) {
+      return res.status(400).json({ error: 'subdomain required' });
+    }
+    const sessionId = telegramDeviceAuth.startDeviceQrSession(subdomain);
+    res.json({ sessionId, mode: 'linked_devices' });
+  } catch (e) {
+    logger.error('[tg-device] start failed', e.message || e);
+    res.status(400).json({ error: e.message || 'start failed' });
+  }
+});
+
+app.get('/api/auth/telegram/device/:sessionId', (req, res) => {
+  const snap = telegramDeviceAuth.getDeviceSession(req.params.sessionId);
+  if (!snap) return res.status(404).json({ error: 'Session not found' });
+  const payload = {
+    status: snap.status,
+    userId: snap.userId,
+    username: snap.username,
+    error: snap.error,
+    passwordHint: snap.passwordHint,
+    qrExpiresAt: snap.qrExpiresAt
+  };
+  if (snap.qrLink) {
+    payload.qrData = snap.qrLink;
+    payload.qrImage = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(snap.qrLink)}`;
+  }
+  res.json(payload);
+});
+
+app.post('/api/auth/telegram/device/:sessionId/password', (req, res) => {
+  const ok = telegramDeviceAuth.submitDevicePassword(
+    req.params.sessionId,
+    (req.body && req.body.password) || ''
+  );
+  res.json({ ok });
 });
 
 /* ============================================================
@@ -941,19 +1435,49 @@ app.post('/check-connection', (req, res) => {
 });
 
 app.post('/link-chat', (req, res) => {
-  const { chatId, leadId, entityType } = req.body;
+  const {
+    chatId,
+    leadId,
+    entityType,
+    subdomain,
+    businessConnectionId = null,
+    telegramUserId = null
+  } = req.body;
   if (!chatId || !leadId || !entityType)
     return res.json({ success: false, error: 'Missing fields' });
 
   const field = entityType === 'LEAD' ? 'amo_lead_id' : 'amo_contact_id';
+  const normalizedSubdomain = normalizeAmoSubdomain(subdomain);
 
   db.get('SELECT * FROM conversations WHERE telegram_chat_id = ?', [chatId], (err, row) => {
     if (err) return res.json({ success: false, error: 'DB error' });
 
     if (row) {
-      db.run(`UPDATE conversations SET ${field} = ? WHERE telegram_chat_id = ?`, [leadId, chatId], () => res.json({ success: true }));
+      db.run(
+        `UPDATE conversations
+         SET ${field} = ?,
+             amo_subdomain = COALESCE(?, amo_subdomain),
+             business_connection_id = COALESCE(?, business_connection_id),
+             telegram_user_id = COALESCE(?, telegram_user_id),
+             channel = CASE WHEN ? IS NOT NULL THEN 'telegram_business' ELSE channel END
+         WHERE telegram_chat_id = ?`,
+        [leadId, normalizedSubdomain, businessConnectionId, telegramUserId, businessConnectionId, chatId],
+        () => res.json({ success: true })
+      );
     } else {
-      db.run(`INSERT INTO conversations (telegram_chat_id, ${field}) VALUES (?, ?)`, [chatId, leadId], () => res.json({ success: true }));
+      db.run(
+        `INSERT INTO conversations (telegram_chat_id, telegram_user_id, business_connection_id, ${field}, amo_subdomain, channel)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          chatId,
+          telegramUserId,
+          businessConnectionId,
+          leadId,
+          normalizedSubdomain,
+          businessConnectionId ? 'telegram_business' : 'telegram'
+        ],
+        () => res.json({ success: true })
+      );
     }
   });
 });
@@ -963,33 +1487,180 @@ app.post('/link-chat', (req, res) => {
 ============================================================ */
 
 const axiosTelegram = axios.create({ timeout: 10000 });
+const TELEGRAM_TO_AMO_PREFIX = '[TG]';
 
-app.post('/amo-webhook', async (req, res) => {
-  const { event, entity } = req.body;
-  if (!entity?.id) return res.json({ ok: true });
+function normalizeAmoSubdomain(subdomainOrHost) {
+  if (!subdomainOrHost) return null;
+  return String(subdomainOrHost)
+    .replace(/^https?:\/\//, '')
+    .replace(/\.amocrm\.ru\/?$/, '')
+    .trim()
+    .toLowerCase();
+}
 
-  db.get(
-    `SELECT * FROM conversations WHERE amo_contact_id = ? OR amo_lead_id = ?`,
-    [entity.id, entity.id],
-    async (err, row) => {
-      if (!row) return res.json({ ok: true });
+async function getDefaultAmoSubdomain() {
+  return new Promise((resolve) => {
+    db.get(
+      `SELECT amo_subdomain FROM users ORDER BY id DESC LIMIT 1`,
+      [],
+      (err, row) => resolve(err ? null : row?.amo_subdomain || null)
+    );
+  });
+}
 
-      try {
-        // ✅ Исправлено: убран лишний пробел в URL
-        await axiosTelegram.post(
-          `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
-          {
-            chat_id: row.telegram_chat_id,
-            text: `🔔 amoCRM event: ${event}\n\nEntity ID: ${entity.id}`
-          }
-        );
-        logger.info('Telegram notification sent', { chat_id: row.telegram_chat_id });
-      } catch (e) {
-        logger.error('Telegram send error', { error: e.message });
+async function addMessageToAmoConversation({ subdomain, conversation, text, direction }) {
+  if (!conversation) return;
+
+  const entityType = conversation.amo_lead_id ? 'leads' : (conversation.amo_contact_id ? 'contacts' : null);
+  const entityId = conversation.amo_lead_id || conversation.amo_contact_id;
+  if (!entityType || !entityId) return;
+
+  const resolvedSubdomain =
+    normalizeAmoSubdomain(subdomain) ||
+    normalizeAmoSubdomain(conversation.amo_subdomain) ||
+    await getDefaultAmoSubdomain();
+
+  if (!resolvedSubdomain) throw new Error('No amo subdomain for conversation');
+
+  const accessToken = await getValidAccessToken(resolvedSubdomain);
+  const noteText = direction === 'from_telegram'
+    ? `${TELEGRAM_TO_AMO_PREFIX} ${text}`
+    : text;
+
+  await axios.post(
+    `https://${resolvedSubdomain}.amocrm.ru/api/v4/${entityType}/notes`,
+    [
+      {
+        entity_id: Number(entityId),
+        note_type: 'common',
+        params: { text: noteText }
       }
-      res.json({ ok: true });
+    ],
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
     }
   );
+}
+
+telegramDeviceAuth.setMessageHandler(({ subdomain, telegramChatId, text }) => {
+  return new Promise((resolve) => {
+    db.get(
+      `SELECT * FROM conversations WHERE amo_subdomain = ? AND telegram_chat_id = ?`,
+      [subdomain, telegramChatId],
+      async (err, conv) => {
+        if (err || !conv) return resolve();
+        try {
+          await addMessageToAmoConversation({
+            conversation: conv,
+            text,
+            direction: 'from_telegram',
+            subdomain
+          });
+        } catch (e) {
+          logger.error('MtProto → amoCRM', e.response?.data || e.message || e);
+        }
+        resolve();
+      }
+    );
+  });
+});
+
+function extractAmoEvent(payload) {
+  if (payload?.event && payload?.entity?.id) {
+    return {
+      event: payload.event,
+      entityIds: [String(payload.entity.id)]
+    };
+  }
+
+  const entities = ['leads', 'contacts', 'companies', 'customers', 'notes'];
+  const actions = ['add', 'update', 'status', 'delete', 'restore', 'note'];
+
+  for (const entityName of entities) {
+    const entityData = payload?.[entityName];
+    if (!entityData) continue;
+
+    for (const actionName of actions) {
+      const actionData = entityData[actionName];
+      if (!actionData) continue;
+
+      const rows = Array.isArray(actionData) ? actionData : Object.values(actionData);
+      const ids = rows
+        .map(item => item?.entity_id || item?.element_id || item?.id)
+        .filter(Boolean)
+        .map(String);
+
+      if (ids.length > 0) {
+        const first = rows[0] || {};
+        return {
+          event: `${entityName}.${actionName}`,
+          entityName,
+          actionName,
+          entityIds: ids,
+          text: first.params?.text || first.text || null
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+app.post('/amo-webhook', async (req, res) => {
+  const extracted = extractAmoEvent(req.body);
+  if (!extracted) return res.json({ ok: true });
+
+  const { event, entityIds } = extracted;
+  const uniqueEntityIds = [...new Set(entityIds)];
+
+  try {
+    for (const entityId of uniqueEntityIds) {
+      const row = await new Promise((resolve, reject) => {
+        db.get(
+          `SELECT * FROM conversations WHERE amo_contact_id = ? OR amo_lead_id = ?`,
+          [entityId, entityId],
+          (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
+          }
+        );
+      });
+
+      if (!row?.telegram_chat_id) continue;
+
+      const isManagerNote = extracted.actionName === 'note' || (extracted.actionName === 'add' && extracted.entityName === 'notes');
+      let outboundText = `🔔 amoCRM event: ${event}\n\nEntity ID: ${entityId}`;
+
+      if (isManagerNote && extracted.text) {
+        const noteText = String(extracted.text).trim();
+        if (noteText.startsWith(TELEGRAM_TO_AMO_PREFIX)) continue;
+        outboundText = `👤 Менеджер:\n${noteText}`;
+      }
+
+      const telegramPayload = {
+        chat_id: row.telegram_chat_id,
+        text: outboundText
+      };
+
+      if (row.business_connection_id) {
+        telegramPayload.business_connection_id = row.business_connection_id;
+      }
+
+      await axiosTelegram.post(
+        `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
+        telegramPayload
+      );
+      logger.info('Telegram notification sent', { chat_id: row.telegram_chat_id, event, entityId });
+    }
+  } catch (e) {
+    logger.error('amo-webhook processing error', { error: e.message });
+  }
+
+  res.json({ ok: true });
 });
 
 /* ============================================================
@@ -1007,6 +1678,20 @@ function cleanupExpiredSessions() {
   );
 }
 setInterval(cleanupExpiredSessions, 5 * 60 * 1000);
+
+function cleanupOAuthStates() {
+  if (!global.oauthStates) return;
+
+  const ttlMs = 30 * 60 * 1000;
+  const now = Date.now();
+
+  for (const [state, payload] of Object.entries(global.oauthStates)) {
+    if (!payload?.ts || now - payload.ts > ttlMs) {
+      delete global.oauthStates[state];
+    }
+  }
+}
+setInterval(cleanupOAuthStates, 5 * 60 * 1000);
 
 /* ============================================================
    🌐 FALLBACK FOR REACT ROUTER (должен быть после всех API роутов)
@@ -1215,6 +1900,24 @@ app.get('/api/messages/send-bulk/:jobId/logs', (req, res) => {
     }
   );
 });
+
+/* SPA fallback: /dashboard, /widget-page и др. отдаём index.html (API и oauth исключаем) */
+if (process.env.NODE_ENV === 'production') {
+  const indexHtml = path.join(__dirname, '../../frontend/dist/index.html');
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+    const p = req.path;
+    if (p.startsWith('/api')) return next();
+    if (p === '/oauth' || p.startsWith('/oauth/')) return next();
+    if (p === '/callback' || p.startsWith('/callback/')) return next();
+    if (p.startsWith('/connect-telegram')) return next();
+    if (p.startsWith('/link-chat')) return next();
+    if (p.startsWith('/check-connection')) return next();
+    if (p.startsWith('/amo-webhook')) return next();
+    res.sendFile(indexHtml, (err) => err && next(err));
+  });
+}
+
 /* ============================================================
    🚀 START SERVER
 ============================================================ */

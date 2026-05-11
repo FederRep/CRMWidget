@@ -14,12 +14,13 @@ PROJECT_DIR="/opt/crm-integration"
 
 echo "🚀 Starting deployment to $SERVER_IP..."
 
-# 1. Build frontend locally
-echo "📦 Building frontend..."
-cd crm-integration-project/frontend
-npm install
-npm run build
-cd ../..
+# 1. Build frontend locally (если есть каталог)
+if [ -d crm-integration-project/frontend ]; then
+  echo "📦 Building frontend..."
+  (cd crm-integration-project/frontend && npm install && npm run build)
+else
+  echo "⏭️  Нет crm-integration-project/frontend — сборка фронта пропущена"
+fi
 
 # 2. Create archive of project
 echo "📁 Creating project archive..."
@@ -49,6 +50,7 @@ tar -xzf /tmp/deploy.tar.gz -C $PROJECT_DIR
 rm /tmp/deploy.tar.gz
 
 # Install dependencies
+cd $PROJECT_DIR/crm-integration-project/backend/main && npm install --omit=dev
 cd $PROJECT_DIR
 npm install --production
 
@@ -74,8 +76,10 @@ GRANT ALL PRIVILEGES ON DATABASE crm_integration TO crm_user;
 \q
 EOF
 
-# Initialize database tables
-sudo -u postgres psql -d crm_integration -f $PROJECT_DIR/crm-integration-project/backend/main/init-postgres.sql
+# Initialize database tables (если есть SQL init)
+if [ -f "$PROJECT_DIR/crm-integration-project/backend/main/init-postgres.sql" ]; then
+  sudo -u postgres psql -d crm_integration -f "$PROJECT_DIR/crm-integration-project/backend/main/init-postgres.sql" || true
+fi
 
 # Setup environment variables
 cat > $PROJECT_DIR/.env << 'EOF'
@@ -100,6 +104,9 @@ REDIRECT_URI=https://corsa-crm.ru/api/auth/callback
 
 # Telegram
 TELEGRAM_TOKEN=8611591835:AAH8NzSlORDeQ3tE44kshaZV5pt4x2j0wow
+TELEGRAM_BOT_USERNAME=
+TELEGRAM_API_ID=
+TELEGRAM_API_HASH=
 EOF
 
 # Setup PM2
