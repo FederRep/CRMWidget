@@ -3,6 +3,30 @@ import React, { createContext, useState, useContext, useEffect } from 'react'
 
 const AuthContext = createContext()
 
+function safeGet(key, fallback = null) {
+  try {
+    return localStorage.getItem(key) ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+function safeSet(key, value) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // In third-party iframes storage can be blocked; keep app usable.
+  }
+}
+
+function safeRemove(key) {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    // Ignore storage failures in restricted iframe contexts.
+  }
+}
+
 export function useAuth() {
   return useContext(AuthContext)
 }
@@ -12,19 +36,19 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('auth_user')
+    const storedUser = safeGet('auth_user')
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser))
       } catch (e) {
-        localStorage.removeItem('auth_user')
+        safeRemove('auth_user')
       }
     }
     setLoading(false)
   }, [])
 
   const register = (email, password, name) => {
-    const users = JSON.parse(localStorage.getItem('registered_users') || '[]')
+    const users = JSON.parse(safeGet('registered_users', '[]') || '[]')
     
     if (users.find(u => u.email === email)) {
       throw new Error('Пользователь с таким email уже существует')
@@ -38,25 +62,25 @@ export function AuthProvider({ children }) {
     }
 
     users.push(newUser)
-    localStorage.setItem('registered_users', JSON.stringify(users))
+    safeSet('registered_users', JSON.stringify(users))
     
     const { password: _, ...userWithoutPassword } = newUser
     setUser(userWithoutPassword)
-    localStorage.setItem('auth_user', JSON.stringify(userWithoutPassword))
+    safeSet('auth_user', JSON.stringify(userWithoutPassword))
     
-    if (!localStorage.getItem(`integrations_${newUser.id}`)) {
-      localStorage.setItem(`integrations_${newUser.id}`, JSON.stringify([]))
+    if (!safeGet(`integrations_${newUser.id}`)) {
+      safeSet(`integrations_${newUser.id}`, JSON.stringify([]))
     }
     
-    if (!localStorage.getItem(`employees_${newUser.id}`)) {
-      localStorage.setItem(`employees_${newUser.id}`, JSON.stringify([]))
+    if (!safeGet(`employees_${newUser.id}`)) {
+      safeSet(`employees_${newUser.id}`, JSON.stringify([]))
     }
     
     return userWithoutPassword
   }
 
   const login = (email, password) => {
-    const users = JSON.parse(localStorage.getItem('registered_users') || '[]')
+    const users = JSON.parse(safeGet('registered_users', '[]') || '[]')
     const user = users.find(u => u.email === email && u.password === btoa(password))
     
     if (!user) {
@@ -65,14 +89,14 @@ export function AuthProvider({ children }) {
 
     const { password: _, ...userWithoutPassword } = user
     setUser(userWithoutPassword)
-    localStorage.setItem('auth_user', JSON.stringify(userWithoutPassword))
+    safeSet('auth_user', JSON.stringify(userWithoutPassword))
     
     return userWithoutPassword
   }
 
   const logout = () => {
     setUser(null)
-    localStorage.removeItem('auth_user')
+    safeRemove('auth_user')
   }
 
   const value = {

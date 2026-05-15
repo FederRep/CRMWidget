@@ -9,10 +9,7 @@ import whatsappIcon from '../icons/w.svg';
 import vkIcon from '../icons/v.svg';
 import linkedinIcon from '../icons/l.svg';
 import defaultIcon from '../icons/d.svg';
-import accountIcon from '../icons/account.svg';
-import botIcon from '../icons/bot.svg';
 import acceptIcon from '../icons/accept.svg';
-import noIcon from '../icons/no.svg';
 
 const IconImage = ({ src, alt, className, size = 24 }) => (
   <img src={src} alt={alt} className={className} style={{ width: `${size}px`, height: `${size}px`, objectFit: 'contain' }} />
@@ -63,13 +60,7 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
   const [singleIntegration, setSingleIntegration] = useState({ type: '', tariff: '' });
   const [multipleIntegrations, setMultipleIntegrations] = useState([{ id: 1, type: '', tariff: '' }]);
   const [telegramSetupOpen, setTelegramSetupOpen] = useState(false);
-  const [telegramSetupType, setTelegramSetupType] = useState(null);
-  const [telegramBotToken, setTelegramBotToken] = useState('');
   const [telegramConnected, setTelegramConnected] = useState(false);
-  const [telegramBotValidating, setTelegramBotValidating] = useState(false);
-  const [telegramBotError, setTelegramBotError] = useState('');
-  const [telegramBotInfo, setTelegramBotInfo] = useState(null);
-  const [telegramMethod, setTelegramMethod] = useState('bot');
   const [telegramSubdomain, setTelegramSubdomain] = useState(
     localStorage.getItem('telegram_subdomain') || user?.amo_subdomain || ''
   );
@@ -77,6 +68,10 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
   const [telegramSessionId, setTelegramSessionId] = useState(null);
   const [telegramStatus, setTelegramStatus] = useState('');
   const [telegramConnecting, setTelegramConnecting] = useState(false);
+  const [telegramPasswordNeeded, setTelegramPasswordNeeded] = useState(false);
+  const [telegramPassword, setTelegramPassword] = useState('');
+  const [telegramPasswordSubmitting, setTelegramPasswordSubmitting] = useState(false);
+  const [telegramPasswordHint, setTelegramPasswordHint] = useState('');
 
   // Handle opening modal from PricingPage
   useEffect(() => {
@@ -145,20 +140,30 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
 
     const pollId = setInterval(async () => {
       try {
-        const statusRes = await fetch(`/api/auth/telegram/qr/${telegramSessionId}`);
+        const statusRes = await fetch(`/api/auth/telegram/device/${telegramSessionId}`);
         const statusData = await statusRes.json();
 
         if (statusData.status === 'authorized') {
           setTelegramStatus('Подключено. Telegram аккаунт авторизован ✅');
           setTelegramConnected(true);
           setTelegramConnecting(false);
+          setTelegramPasswordNeeded(false);
+          setTelegramPassword('');
           clearInterval(pollId);
-        } else if (statusData.status === 'expired') {
-          setTelegramStatus('QR-сессия истекла. Сгенерируй новый код.');
+        } else if (statusData.status === 'password_needed') {
+          setTelegramPasswordNeeded(true);
+          setTelegramPasswordHint(statusData.passwordHint || '');
+          setTelegramStatus('Введите облачный пароль Telegram (2FA), если включен.');
+        } else if (statusData.status === 'pending_scan') {
+          if (statusData.qrImage) setTelegramQr(statusData.qrImage);
+          setTelegramStatus('Откройте Telegram → Настройки → Устройства → Связать устройство и сканируйте QR.');
+        } else if (statusData.status === 'error') {
+          setTelegramStatus(statusData.error || 'Ошибка подключения Telegram');
           setTelegramConnecting(false);
+          setTelegramPasswordNeeded(false);
           clearInterval(pollId);
         } else {
-          setTelegramStatus('Ожидание сканирования QR...');
+          setTelegramStatus('Подключение...');
         }
       } catch (e) {
         setTelegramStatus('Ошибка проверки статуса QR-сессии');
@@ -170,48 +175,54 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
 
   const handleGenerateTelegramQr = async () => {
     try {
+      const sub = telegramSubdomain.trim().toLowerCase();
+      if (!sub) {
+        setTelegramStatus('Укажите поддомен amoCRM перед подключением Telegram.');
+        return;
+      }
       setTelegramConnecting(true);
       setTelegramStatus('Готовим QR...');
       setTelegramQr(null);
       setTelegramSessionId(null);
+      setTelegramPasswordNeeded(false);
+      setTelegramPassword('');
+      setTelegramPasswordHint('');
 
-      const qs = telegramSubdomain.trim()
-        ? `?subdomain=${encodeURIComponent(telegramSubdomain.trim().toLowerCase())}`
-        : '';
-      const response = await fetch(`/api/auth/telegram/qr${qs}`, { method: 'GET' });
+      const response = await fetch('/api/auth/telegram/device/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subdomain: sub }),
+      });
       const data = await response.json();
 
-      if (!data.sessionId || !data.qrImage) {
-        throw new Error('Invalid QR payload');
+      if (!data.sessionId) {
+        throw new Error(data.error || 'Не удалось запустить сессию');
       }
 
-      setTelegramQr(data.qrImage);
       setTelegramSessionId(data.sessionId);
-      setTelegramStatus('Отсканируйте QR в Telegram');
+      setTelegramStatus('Подключаемся к Telegram... QR появится через пару секунд.');
     } catch (error) {
       setTelegramConnecting(false);
-      setTelegramStatus('Не удалось создать QR. Проверьте backend.');
+      setTelegramStatus(error?.message || 'Не удалось создать QR. Проверьте backend.');
     }
   };
 
-  const handleConnectBotToken = async () => {
-    if (!telegramBotToken.trim()) return;
-    setTelegramBotValidating(true);
-    setTelegramBotError('');
-    setTelegramBotInfo(null);
+  const handleSubmitTelegramPassword = async () => {
+    if (!telegramSessionId || !telegramPassword.trim()) return;
+    setTelegramPasswordSubmitting(true);
     try {
-      const res = await fetch(`https://api.telegram.org/bot${telegramBotToken.trim()}/getMe`);
-      const data = await res.json();
-      if (data.ok) {
-        setTelegramBotInfo(data.result);
-        setTelegramConnected(true);
-      } else {
-        setTelegramBotError('Бот не найден или токен недействителен');
-      }
+      await fetch(`/api/auth/telegram/device/${telegramSessionId}/password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: telegramPassword.trim() }),
+      });
+      setTelegramPassword('');
+      setTelegramPasswordNeeded(false);
+      setTelegramStatus('Проверяем пароль...');
     } catch (e) {
-      setTelegramBotError('Ошибка подключения. Проверьте токен и повторите.');
+      setTelegramStatus('Не удалось отправить пароль 2FA.');
     } finally {
-      setTelegramBotValidating(false);
+      setTelegramPasswordSubmitting(false);
     }
   };
 
@@ -226,10 +237,12 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
     setSingleIntegration({ type: '', tariff: '' });
     setMultipleIntegrations([{ id: 1, type: '', tariff: '' }]);
     setTelegramConnected(false);
-    setTelegramBotInfo(null);
-    setTelegramBotError('');
     setTelegramQr(null);
+    setTelegramSessionId(null);
     setTelegramStatus('');
+    setTelegramPasswordNeeded(false);
+    setTelegramPassword('');
+    setTelegramPasswordHint('');
   };
 
   const handleCloseAddModal = () => {
@@ -240,13 +253,13 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
     setSingleIntegration(prev => ({ ...prev, [field]: value }));
     if (field === 'tariff' && value && singleIntegration.type === 'Telegram' && !telegramConnected) {
       setTelegramSetupOpen(true);
-      setTelegramSetupType(null);
-      setTelegramBotToken('');
-      setTelegramBotError('');
-      setTelegramBotInfo(null);
       setTelegramQr(null);
       setTelegramSessionId(null);
       setTelegramStatus('');
+      setTelegramPasswordNeeded(false);
+      setTelegramPassword('');
+      setTelegramPasswordHint('');
+      handleGenerateTelegramQr();
     }
   };
 
@@ -261,13 +274,13 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
         const newTariff = field === 'tariff' ? value : item.tariff;
         if (newType === 'Telegram' && newTariff) {
           setTelegramSetupOpen(true);
-          setTelegramSetupType(null);
-          setTelegramBotToken('');
-          setTelegramBotError('');
-          setTelegramBotInfo(null);
           setTelegramQr(null);
           setTelegramSessionId(null);
           setTelegramStatus('');
+          setTelegramPasswordNeeded(false);
+          setTelegramPassword('');
+          setTelegramPasswordHint('');
+          handleGenerateTelegramQr();
         }
       }
     }
@@ -300,12 +313,15 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
   };
 
   const canShowPayButton = () => {
+    const hasTelegramInMultiple = multipleIntegrations.some(item => item.type === 'Telegram' && item.tariff);
     if (addModalTab === 'single') {
       if (!singleIntegration.type || !singleIntegration.tariff) return false;
       if (singleIntegration.type === 'Telegram' && !telegramConnected) return false;
       return true;
     } else {
-      return multipleIntegrations.every(item => item.type && item.tariff);
+      if (!multipleIntegrations.every(item => item.type && item.tariff)) return false;
+      if (hasTelegramInMultiple && !telegramConnected) return false;
+      return true;
     }
   };
 
@@ -332,7 +348,7 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
           id: Date.now(),
           type: singleIntegration.type,
           name: singleIntegration.type === 'Telegram'
-            ? `Telegram ${telegramSetupType === 'bot' ? 'бот' : 'аккаунт'}`
+            ? 'Telegram аккаунт'
             : `${singleIntegration.type} канал`,
           status: 'active',
           subscriptionStatus: 'active',
@@ -349,7 +365,7 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
             id: Date.now() + index,
             type: item.type,
             name: item.type === 'Telegram'
-              ? `Telegram ${telegramSetupType === 'bot' ? 'бот' : 'аккаунт'} ${index + 1}`
+              ? `Telegram аккаунт ${index + 1}`
               : `${item.type} канал ${index + 1}`,
             status: 'active',
             subscriptionStatus: 'active',
@@ -633,103 +649,86 @@ function IntegrationsTab({ user, integrations, employees, updateEmployeeRoles, s
               <button className="modal-close" onClick={() => setTelegramSetupOpen(false)}>×</button>
             </div>
             <div className="modal-body">
-              {!telegramSetupType ? (
-                <div className="tg-connect-options">
-                  <button className="tg-connect-option-btn" onClick={() => { setTelegramSetupType('account'); handleGenerateTelegramQr(); }}>
-                    <span className="tg-option-icon"><IconImage src={accountIcon} alt="Аккаунт" size={36} /></span>
-                    <div className="tg-option-text">
-                      <span className="tg-option-title">Аккаунт (пользователь)</span>
-                      <span className="tg-option-desc">Войдите в Telegram через QR-код для авторизации</span>
-                    </div>
-                  </button>
-                  <button className="tg-connect-option-btn" onClick={() => setTelegramSetupType('bot')}>
-                    <span className="tg-option-icon"><IconImage src={botIcon} alt="Бот" size={36} /></span>
-                    <div className="tg-option-text">
-                      <span className="tg-option-title">Бот</span>
-                      <span className="tg-option-desc">Введите токен вашего Telegram-бота</span>
-                    </div>
-                  </button>
-                </div>
-              ) : telegramSetupType === 'bot' ? (
-                <div className="tg-bot-section">
-                  {telegramConnected && telegramBotInfo ? (
-                    <div className="tg-success-state">
-                      <div className="tg-success-icon"><IconImage src={acceptIcon} alt="Успех" size={48} /></div>
-                      <p className="tg-success-title">Бот успешно подключён!</p>
-                      <p className="tg-success-name">@{telegramBotInfo.username} · {telegramBotInfo.first_name}</p>
-                      <button className="modal-save" onClick={() => setTelegramSetupOpen(false)}>Готово</button>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="tg-section-hint">Введите токен вашего Telegram-бота.</p>
-                      <p className="tg-section-sub">Получите токен у <a href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</a> в Telegram.</p>
+              <div className="tg-account-section">
+                {telegramConnected && telegramStatus.includes('✅') ? (
+                  <div className="tg-success-state">
+                    <div className="tg-success-icon"><IconImage src={acceptIcon} alt="Успех" size={48} /></div>
+                    <p className="tg-success-title">Telegram подключен. Можно приступать к работе ✅</p>
+                    <button className="modal-save" onClick={() => setTelegramSetupOpen(false)}>Готово</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="form-group">
+                      <label>Поддомен amoCRM</label>
                       <input
-                        type="text"
-                        className="tg-token-input"
-                        placeholder="1234567890:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-                        value={telegramBotToken}
-                        onChange={(e) => { setTelegramBotToken(e.target.value); setTelegramBotError(''); }}
+                        className="modal-input"
+                        value={telegramSubdomain}
+                        onChange={(e) => setTelegramSubdomain(e.target.value)}
+                        placeholder="mycompany"
                       />
-                      {telegramBotError && <div className="tg-error-msg"><IconImage src={noIcon} alt="Ошибка" size={18} className="tg-error-icon" /> {telegramBotError}</div>}
-                      <div className="tg-section-actions">
-                        <button className="tg-back-btn" onClick={() => setTelegramSetupType(null)}>← Назад</button>
+                    </div>
+                    <p className="tg-section-hint">
+                      1) Откройте Telegram → Настройки → Устройства → Связать устройство
+                      <br />
+                      2) Сканируйте QR-код ниже
+                    </p>
+                    {!telegramQr && (
+                      <div className="tg-progress-wrap">
+                        <div className="tg-progress-bar"><div className="tg-progress-fill"></div></div>
+                        <span className="tg-progress-label">Готовим QR-код...</span>
+                      </div>
+                    )}
+                    {telegramQr && (
+                      <div className="telegram-qr-wrap">
+                        <img src={telegramQr} alt="Telegram QR" />
+                      </div>
+                    )}
+                    {telegramStatus && (
+                      <div className={`telegram-status${telegramStatus.toLowerCase().includes('ошибка') ? ' tg-status-error' : ''}`}>
+                        {telegramStatus}
+                      </div>
+                    )}
+                    {telegramPasswordNeeded && (
+                      <div className="tg-section-actions" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '10px' }}>
+                        <input
+                          type="password"
+                          className="tg-token-input"
+                          placeholder={telegramPasswordHint ? `2FA пароль (подсказка: ${telegramPasswordHint})` : '2FA пароль Telegram'}
+                          value={telegramPassword}
+                          onChange={(e) => setTelegramPassword(e.target.value)}
+                        />
                         <button
                           className="modal-save"
-                          disabled={!telegramBotToken.trim() || telegramBotValidating}
-                          onClick={handleConnectBotToken}
+                          disabled={!telegramPassword.trim() || telegramPasswordSubmitting}
+                          onClick={handleSubmitTelegramPassword}
                         >
-                          {telegramBotValidating ? 'Проверка...' : 'Подключить'}
+                          {telegramPasswordSubmitting ? 'Отправка...' : 'Подтвердить 2FA пароль'}
                         </button>
                       </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="tg-account-section">
-                  {telegramConnected && telegramStatus.includes('✅') ? (
-                    <div className="tg-success-state">
-                      <div className="tg-success-icon"><IconImage src={acceptIcon} alt="Успех" size={48} /></div>
-                      <p className="tg-success-title">Аккаунт успешно подключён!</p>
-                      <button className="modal-save" onClick={() => setTelegramSetupOpen(false)}>Готово</button>
+                    )}
+                    <div className="tg-section-actions">
+                      <button
+                        className="tg-cancel-btn"
+                        onClick={() => {
+                          setTelegramSessionId(null);
+                          setTelegramQr(null);
+                          setTelegramStatus('');
+                          setTelegramConnecting(false);
+                          setTelegramPasswordNeeded(false);
+                          setTelegramPassword('');
+                          setTelegramPasswordHint('');
+                          setTelegramSetupOpen(false);
+                        }}
+                      >
+                        Отмена
+                      </button>
+                      <button className="btn-add-integration" onClick={handleGenerateTelegramQr}>
+                        Обновить QR-код
+                      </button>
                     </div>
-                  ) : (
-                    <>
-                      <p className="tg-section-hint">Отсканируйте QR-код в приложении Telegram для авторизации аккаунта.</p>
-                      {telegramConnecting && !telegramQr && (
-                        <div className="tg-progress-wrap">
-                          <div className="tg-progress-bar"><div className="tg-progress-fill"></div></div>
-                          <span className="tg-progress-label">Готовим QR-код...</span>
-                        </div>
-                      )}
-                      {telegramQr && (
-                        <div className="telegram-qr-wrap">
-                          <img src={telegramQr} alt="Telegram QR" />
-                        </div>
-                      )}
-                      {telegramQr && telegramConnecting && (
-                        <div className="tg-progress-wrap">
-                          <div className="tg-progress-bar"><div className="tg-progress-pulse"></div></div>
-                          <span className="tg-progress-label">Ожидание сканирования QR...</span>
-                        </div>
-                      )}
-                      {telegramStatus && !telegramConnecting && (
-                        <div className={`telegram-status${telegramStatus.includes('истекла') ? ' tg-status-error' : ''}`}>
-                          {telegramStatus}
-                        </div>
-                      )}
-                      <div className="tg-section-actions">
-                        <button className="tg-back-btn" onClick={() => { setTelegramSetupType(null); setTelegramSessionId(null); setTelegramQr(null); setTelegramStatus(''); setTelegramConnecting(false); }}>← Назад</button>
-                        {telegramConnecting && telegramSessionId && (
-                          <button className="tg-cancel-btn" onClick={() => { setTelegramSessionId(null); setTelegramConnecting(false); setTelegramStatus(''); }}>Отмена</button>
-                        )}
-                        {telegramStatus.includes('истекла') && (
-                          <button className="btn-add-integration" onClick={handleGenerateTelegramQr}>Показать новый QR-код</button>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

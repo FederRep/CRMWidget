@@ -1,11 +1,27 @@
 .amo-hub {
-  max-width: 720px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 24px 16px 48px;
+  padding: 8px;
+  background: #f1f3f5;
 }
 
 .amo-hub--embedded {
-  padding: 12px 8px 24px;
+  padding: 8px;
+}
+
+.amo-hub__topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.amo-hub__topbar-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .amo-hub__title {
@@ -15,16 +31,16 @@
 
 .amo-hub__lead {
   color: #4a5568;
-  font-size: 14px;
-  line-height: 1.45;
-  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.35;
+  margin: 0;
 }
 
 .amo-hub__card {
   background: rgba(255, 255, 255, 0.92);
   border-radius: 12px;
-  padding: 16px 18px;
-  margin-bottom: 14px;
+  padding: 12px;
+  margin-bottom: 10px;
   box-shadow: 0 1px 8px rgba(15, 23, 42, 0.08);
 }
 
@@ -65,12 +81,60 @@
   align-items: center;
 }
 
+.amo-hub__workspace {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 0;
+  min-height: 680px;
+  border: 1px solid #d9dee3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.amo-hub__sidebar,
+.amo-hub__dialog {
+  background: #fff;
+  padding: 10px;
+}
+
+.amo-hub__sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 680px;
+  border-right: 1px solid #d9dee3;
+}
+
+.amo-hub__dialog {
+  display: flex;
+  flex-direction: column;
+  min-height: 680px;
+  background: #f5f6f7;
+}
+
+.amo-hub__dialog-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 10px;
+  border-bottom: 1px solid #d9dee3;
+  margin: -10px -10px 8px;
+  background: #fff;
+}
+
+.amo-hub__dialog-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .amo-hub__input {
   flex: 1;
   min-width: 160px;
   padding: 10px 12px;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 14px;
 }
 
@@ -135,22 +199,256 @@
   list-style: none;
   padding: 0;
   margin: 12px 0 0;
+  overflow: auto;
 }
 
 .amo-hub__chat-item {
-  padding: 10px 0;
+  padding: 8px 6px;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.amo-hub__chat-item--active {
+  background: #eef1f4;
+  border-radius: 6px;
+}
+
+.amo-hub__chat-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.amo-hub__chat-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+}
+
+.amo-hub__chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .amo-hub__chat-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.amo-hub__chat-meta {
+.amo-hub__chat-preview {
   font-size: 12px;
+  color: #55606e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amo-hub__chat-time {
+  color: #7b8794;
+  font-size: 11px;
+}
+
+.amo-hub__chat-badge {
+  background: #f14646;
+  color: #fff;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
+
+.amo-hub__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.amo-hub__multichat-card {
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #d9dee3;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.amo-hub__multichat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.amo-hub__multichat-users {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 120px;
+  overflow: auto;
+  margin-bottom: 8px;
+}
+
+.amo-hub__messages {
+  flex: 1;
+  min-height: 320px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 8px;
+  padding-right: 2px;
+}
+
+.amo-hub__msg {
+  max-width: 80%;
+  padding: 7px 9px;
+  border-radius: 6px;
+  border: 1px solid #dce2e8;
+  background: #fff;
+}
+
+.amo-hub__msg--in {
+  align-self: flex-start;
+  background: #f8fafc;
+}
+
+.amo-hub__msg--out {
+  align-self: flex-start;
+  background: #f0f2f5;
+  border-color: #e0e5ea;
+}
+
+.amo-hub__msg-text {
+  font-size: 14px;
+  color: #0f172a;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.amo-hub__msg-time {
+  margin-top: 4px;
+  font-size: 11px;
   color: #64748b;
+}
+
+.amo-hub__msg-status--sent {
+  color: #15803d;
+}
+
+.amo-hub__msg-status--failed {
+  color: #b91c1c;
+}
+
+.amo-hub__msg-error {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #b91c1c;
+}
+
+.amo-hub__composer {
+  margin-top: 8px;
+  border-top: 1px solid #d9dee3;
+  padding-top: 8px;
+  background: #fff;
+  margin-left: -10px;
+  margin-right: -10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-bottom: 4px;
+}
+
+.amo-hub__composer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.amo-hub__composer-icon {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #c9d2dc;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #fff;
+  color: #6b7785;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.amo-hub__composer-send {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: #32a7e2;
+  color: #fff;
+  cursor: pointer;
+}
+
+.amo-hub__composer-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.amo-hub__attachments {
+  margin: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.amo-hub__attachment-chip {
+  font-size: 12px;
+  color: #0f172a;
+  background: #e2e8f0;
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
+.amo-hub__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 18px;
+  font-size: 14px;
+  resize: none;
+  min-height: 36px;
+  max-height: 84px;
+}
+
+@media (max-width: 980px) {
+  .amo-hub__workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .amo-hub__sidebar,
+  .amo-hub__dialog {
+    min-height: 380px;
+  }
 }
